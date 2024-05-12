@@ -2,8 +2,11 @@ const std = @import("std");
 
 pub const RowType = enum {
     Heading,
+    SubHeading,
     Text,
     BulletPoint,
+    // TODO: SubBulletPoint,
+    // TODO: NumberedPoint,
 };
 
 pub const VerticalAlignment = enum {
