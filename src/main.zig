@@ -1,4 +1,5 @@
 const std = @import("std");
+const row = @import("row.zig");
 
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
@@ -12,6 +13,21 @@ pub fn main() !void {
     const stdout = bw.writer();
 
     try stdout.print("Run `zig build test` to run the tests.\n", .{});
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const deinit_status = gpa.deinit();
+        // fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) @panic("Memory Leak");
+    }
+    const allocator = gpa.allocator();
+
+    var row1 = try row.Row.init(allocator, .Text, "Hallo 123", .{});
+    defer row1.deinit();
+
+    const rowString = try row1.render();
+
+    try stdout.print("{s}", .{rowString.items});
 
     try bw.flush(); // don't forget to flush!
 }
