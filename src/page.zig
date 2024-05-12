@@ -17,8 +17,23 @@ pub const Page = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        for (self.rows.items) |r| {
+            r.deinit();
+        }
+        self.rows.deinit();
+    }
+
     pub fn addRow(self: *Self, toAdd: row.Row) !void {
         try self.rows.append(toAdd);
+    }
+
+    pub fn print(self: *Self, writer: anytype) !void {
+        try writer.print("Page: {}\n", .{self.index});
+        for (self.rows.items) |*r| {
+            const pStr = try r.render();
+            try writer.print("{s}\n", .{pStr.*});
+        }
     }
 };
 
