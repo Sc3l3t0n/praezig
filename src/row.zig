@@ -45,6 +45,7 @@ pub const Row = struct {
         content: []const u8,
         options: RowOptions,
     ) !Self {
+        // TODO: Use fromOwnedSlice
         var contentArray = std.ArrayList(u8).init(allocator);
         try contentArray.appendSlice(content);
 
@@ -72,7 +73,7 @@ pub const Row = struct {
     // 'deinit' is called by the row
     pub fn render(
         self: *Self,
-    ) !*std.ArrayList(u8) {
+    ) !*[]u8 {
         self.renderedContent = std.ArrayList(u8).init(self.allocator);
         const buffer = &self.renderedContent.?;
         try buffer.appendNTimes(' ', 4 * self.options.indent);
@@ -80,6 +81,10 @@ pub const Row = struct {
         switch (self.rowType) {
             .Heading => {
                 try buffer.appendSlice("Heading: ");
+                try buffer.appendSlice(self.content.items);
+            },
+            .SubHeading => {
+                try buffer.appendSlice("SubHeading: ");
                 try buffer.appendSlice(self.content.items);
             },
             .Text => {
@@ -90,6 +95,6 @@ pub const Row = struct {
                 try buffer.appendSlice(self.content.items);
             },
         }
-        return buffer;
+        return &buffer.items;
     }
 };
