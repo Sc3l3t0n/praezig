@@ -1,5 +1,7 @@
 const std = @import("std");
-const row = @import("row.zig");
+const parser = @import("parser.zig");
+const termsize = @import("termsize.zig");
+const termutils = @import("termutils.zig");
 
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
@@ -22,19 +24,37 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    var row1 = try row.Row.init(allocator, .Text, "Hallo 123", .{});
-    defer row1.deinit();
+    const content =
+        \\# This is a Test
+        \\Another Test
+        \\- Hallo
+        \\- Welt
+        \\---
+        \\# This is a Test
+        \\Another Test
+        \\- Hallo
+    ;
+    _ = content;
 
-    const rowString = try row1.render();
+    var pages = try parser.Parser.fromFile(allocator, "/home/sceleton/dev/zig/praezig/test/test1.md");
 
-    try stdout.print("{s}", .{rowString.items});
+    // var pages = try parser.Parser.parse(allocator, content);
+    defer {
+        for (pages.items) |*page| {
+            page.deinit();
+        }
+        pages.deinit();
+    }
 
+    const size = try termsize.getTerminalSize();
+
+    for (pages.items) |*page| {
+        page.size = size;
+        try page.print(stdout);
+        try bw.flush(); // don't forget to flush!
+        std.time.sleep(2 * std.time.ns_per_s);
+    }
+
+    try stdout.print(termutils.newPage, .{});
     try bw.flush(); // don't forget to flush!
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }

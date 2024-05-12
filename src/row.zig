@@ -1,4 +1,5 @@
 const std = @import("std");
+const colors = @import("termutils.zig").colors;
 
 pub const RowType = enum {
     Heading,
@@ -73,28 +74,47 @@ pub const Row = struct {
     // 'deinit' is called by the row
     pub fn render(
         self: *Self,
+        width: usize,
     ) !*[]u8 {
         self.renderedContent = std.ArrayList(u8).init(self.allocator);
         const buffer = &self.renderedContent.?;
         try buffer.appendNTimes(' ', 4 * self.options.indent);
 
+        const backgroundColor = colors.Background.get(.Black);
+        var widthWithEscapeCodes = width + 2;
+
         switch (self.rowType) {
             .Heading => {
-                try buffer.appendSlice("Heading: ");
+                try buffer.appendSlice(colors.Foreground.get(.DarkYellow, .Bold));
+                try buffer.appendSlice(backgroundColor);
+                widthWithEscapeCodes += 2 * backgroundColor.len;
                 try buffer.appendSlice(self.content.items);
             },
             .SubHeading => {
-                try buffer.appendSlice("SubHeading: ");
+                try buffer.appendSlice(colors.Foreground.get(.Blue, .Bold));
+                try buffer.appendSlice(backgroundColor);
+                widthWithEscapeCodes += 2 * backgroundColor.len;
                 try buffer.appendSlice(self.content.items);
             },
             .Text => {
+                try buffer.appendSlice(colors.Foreground.get(.White, .Normal));
+                try buffer.appendSlice(backgroundColor);
+                widthWithEscapeCodes += 2 * backgroundColor.len;
                 try buffer.appendSlice(self.content.items);
             },
             .BulletPoint => {
-                try buffer.appendSlice("- ");
+                try buffer.appendSlice(colors.Foreground.get(.Green, .Normal));
+                try buffer.appendSlice(backgroundColor);
+                widthWithEscapeCodes += 2 * backgroundColor.len;
+                try buffer.appendSlice("▶ ");
+                try buffer.appendSlice(colors.Foreground.get(.White, .Normal));
+                try buffer.appendSlice(backgroundColor);
+                widthWithEscapeCodes += backgroundColor.len;
                 try buffer.appendSlice(self.content.items);
             },
         }
+        try buffer.appendNTimes(' ', widthWithEscapeCodes - buffer.items.len);
+        try buffer.append('\n');
         return &buffer.items;
     }
 };

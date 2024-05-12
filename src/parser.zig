@@ -1,6 +1,7 @@
 const std = @import("std");
 const row = @import("row.zig");
 const page = @import("page.zig");
+const fs = std.fs;
 
 const mem = std.mem;
 
@@ -18,15 +19,15 @@ pub const Parser = struct {
         // NOTE: Do i need to free the memory of the tokens?
         while (tokenIterator.next()) |token| {
             if (mem.startsWith(u8, token, "# ")) {
-                const slice = mem.trimLeft(u8, token, "# ");
+                const slice = token[2..];
                 const r = try row.Row.init(allocator, .Heading, slice, .{});
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "## ")) {
-                const slice = mem.trimLeft(u8, token, "## ");
+                const slice = token[3..];
                 const r = try row.Row.init(allocator, .SubHeading, slice, .{});
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "- ")) {
-                const slice = mem.trimLeft(u8, token, "- ");
+                const slice = token[2..];
                 const r = try row.Row.init(allocator, .BulletPoint, slice, .{});
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "---")) {
@@ -38,6 +39,21 @@ pub const Parser = struct {
             }
         }
         return pages;
+    }
+
+    pub fn fromFile(
+        allocator: std.mem.Allocator,
+        path: []const u8,
+    ) !std.ArrayList(page.Page) {
+        const file = try fs.openFileAbsolute(path, .{});
+        defer file.close();
+
+        var array = std.ArrayList(u8).init(allocator);
+        defer array.deinit();
+
+        try file.reader().readAllArrayList(&array, 50000);
+
+        return try parse(allocator, array.items);
     }
 };
 
