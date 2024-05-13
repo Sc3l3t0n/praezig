@@ -1,6 +1,5 @@
 const std = @import("std");
 const row = @import("row.zig");
-const termsize = @import("termsize.zig");
 const termutils = @import("termutils.zig");
 
 const PageError = error{
@@ -11,7 +10,7 @@ pub const Page = struct {
     index: u32,
     rows: std.ArrayList(row.Row),
     addons: ?[]PageAddon,
-    size: ?termsize.TermSize,
+    size: ?termutils.size.TermSize,
 
     const Self = @This();
 

@@ -1,12 +1,8 @@
 const std = @import("std");
 const parser = @import("parser.zig");
-const termsize = @import("termsize.zig");
 const termutils = @import("termutils.zig");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
     // stdout is for the actual output of your application, for example if you
     // are implementing gzip, then only the compressed bytes should be sent to
     // stdout, not any debugging messages.
@@ -46,7 +42,8 @@ pub fn main() !void {
         pages.deinit();
     }
 
-    const size = try termsize.getTerminalSize();
+    const size = try termutils.size.getTerminalSize();
+
 
     for (pages.items) |*page| {
         page.size = size;
