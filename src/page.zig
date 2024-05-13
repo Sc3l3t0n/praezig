@@ -10,7 +10,7 @@ pub const Page = struct {
     index: u32,
     rows: std.ArrayList(row.Row),
     addons: ?[]PageAddon,
-    size: ?termutils.size.TermSize,
+    size: ?*const termutils.size.TermSize,
 
     const Self = @This();
 
