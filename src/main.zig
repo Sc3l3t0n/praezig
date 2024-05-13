@@ -44,6 +44,8 @@ pub fn main() !void {
 
     const size = try termutils.size.getTerminalSize();
 
+    try stdout.print(termutils.alternateScreen, .{});
+    try bw.flush(); // don't forget to flush!
 
     for (pages.items) |*page| {
         page.size = size;
@@ -52,6 +54,6 @@ pub fn main() !void {
         std.time.sleep(2 * std.time.ns_per_s);
     }
 
-    try stdout.print(termutils.newPage, .{});
+    try stdout.print(termutils.mainScreen, .{});
     try bw.flush(); // don't forget to flush!
 }
