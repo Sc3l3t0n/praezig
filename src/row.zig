@@ -29,6 +29,10 @@ pub const RowOptions = struct {
     indent: u8 = 0,
 };
 
+pub const RowErrors = error{
+    TooLong, // TODO: Temporary (handle properly)
+};
+
 pub const Row = struct {
     allocator: std.mem.Allocator,
 
@@ -76,6 +80,13 @@ pub const Row = struct {
         self: *Self,
         width: usize,
     ) !*[]u8 {
+        if (self.renderedContent) |*renderedContent| {
+            return &renderedContent.items;
+        }
+
+        if (self.content.items.len >= width) {
+            return RowErrors.TooLong; // TODO: Temporary (handle properly)
+        }
         self.renderedContent = std.ArrayList(u8).init(self.allocator);
         const buffer = &self.renderedContent.?;
         try buffer.appendNTimes(' ', 4 * self.options.indent);
@@ -113,7 +124,8 @@ pub const Row = struct {
                 try buffer.appendSlice(self.content.items);
             },
         }
-        try buffer.appendNTimes(' ', widthWithEscapeCodes - buffer.items.len);
+
+        try buffer.appendNTimes(' ', widthWithEscapeCodes -| buffer.items.len);
         try buffer.append('\n');
         return &buffer.items;
     }
