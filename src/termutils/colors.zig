@@ -1,14 +1,16 @@
-// NOTE: Maybe get them from termutils
 const esc = "\x1B";
 const csi = esc ++ "[";
 
+/// Resets the terminal style to normal.
 pub const reset = csi ++ "0m";
 
+/// All the weights that can be used in the terminal.
 pub const Weight = enum {
     Normal,
     Bold,
 };
 
+/// All the colors that can be used in the terminal.
 pub const Color = enum {
     Default,
     Black,
@@ -29,6 +31,7 @@ pub const Color = enum {
     White,
 };
 
+/// Used to change the foreground color and weight of the terminal.
 pub const Foreground = struct {
     const Default = "39m";
     const Black = "30m";
@@ -48,6 +51,7 @@ pub const Foreground = struct {
     const Cyan = "96m";
     const White = "97m";
 
+    /// Returns the escape sequence to change the foreground color and weight.
     pub fn get(comptime color: Color, comptime weight: Weight) []const u8 {
         const sWeight = switch (weight) {
             .Normal => "0;",
@@ -78,6 +82,7 @@ pub const Foreground = struct {
     }
 };
 
+/// Used to change the background color of the terminal.
 pub const Background = struct {
     const Default = "49m";
     const Black = "40m";
@@ -97,6 +102,7 @@ pub const Background = struct {
     const Cyan = "106m";
     const White = "107m";
 
+    /// Returns the escape sequence to change the background color.
     pub fn get(comptime color: Color) []const u8 {
         const sColor = switch (color) {
             .Default => Default,

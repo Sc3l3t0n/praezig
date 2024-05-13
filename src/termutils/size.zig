@@ -8,11 +8,14 @@ pub const TermSizeError = error{
     NotATty,
 };
 
+/// The terminal size in columns and rows.
 pub const TermSize = struct {
     col: usize,
     row: usize,
 };
 
+/// Get the size of the terminal.
+/// Is supported on Linux, macOS, and Windows.
 pub fn getTerminalSize() TermSizeError!TermSize {
     const stdout = std.io.getStdOut();
 

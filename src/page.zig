@@ -40,7 +40,7 @@ pub const Page = struct {
             return PageError.SizeNotSet;
         }
 
-        try writer.print(termutils.newPage, .{});
+        try writer.print(termutils.clearScreen, .{});
         try writer.print(termutils.colors.Background.get(.Black), .{});
 
         for (0..self.size.?.col) |_| {

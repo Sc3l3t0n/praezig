@@ -1,12 +1,16 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const KBError = error{
+/// Error codes for the keyboard module.
+pub const KBError = error{
     NotSupported,
     Unexpected,
 };
 
+/// Set the terminal to rawmode/cookmode.
+/// Currently only works on Linux!
 pub fn setRawMode(enable: bool) !void {
+    // TODO: Make this work on other platforms
     if (builtin.os.tag != .linux) {
         return KBError.NotSupported;
     }
