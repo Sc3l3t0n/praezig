@@ -18,3 +18,7 @@ pub fn main() !void {
     defer p.deinit();
     try p.run();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
