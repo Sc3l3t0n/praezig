@@ -2,6 +2,7 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const termutils = @import("termutils.zig");
 const program = @import("program.zig");
+const utils = @import("utils.zig");
 
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
@@ -14,7 +15,18 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    var p = try program.Program.initFromFile(allocator, stdout.any(), stdin.any(), "/home/sceleton/dev/zig/praezig/test/test1.md");
+    // Parse command line arguments
+    const path = utils.get_path_arg(allocator) catch {
+        return;
+    };
+    defer allocator.free(path);
+
+    var p = try program.Program.initFromFile(
+        allocator,
+        stdout.any(),
+        stdin.any(),
+        path,
+    );
     defer p.deinit();
     try p.run();
 }
