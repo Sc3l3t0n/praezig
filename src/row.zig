@@ -73,9 +73,8 @@ pub const Row = struct {
         }
     }
 
-    // Returns the rendered content as *ArrayList(u8).
+    // Returns the rendered content as []u8
     // The rendered content is stored in the struct for future use.
-    // 'deinit' is called by the row
     pub fn render(
         self: *Self,
         width: usize,
@@ -91,41 +90,38 @@ pub const Row = struct {
         const buffer = &self.renderedContent.?;
         try buffer.appendNTimes(' ', 4 * self.options.indent);
 
-        const backgroundColor = Color.Black.background();
-        var widthWithEscapeCodes = width + 2;
+        const backgroundColor = comptime Color.Black.background();
 
         switch (self.rowType) {
             .Heading => {
-                try buffer.appendSlice(Color.DarkYellow.foreground(.Bold));
-                try buffer.appendSlice(backgroundColor);
-                widthWithEscapeCodes += 2 * backgroundColor.len;
+                const esc: []const u8 = comptime Color.DarkYellow.foreground(.Bold) ++ backgroundColor;
+
+                try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
             },
             .SubHeading => {
-                try buffer.appendSlice(Color.Blue.foreground(.Bold));
-                try buffer.appendSlice(backgroundColor);
-                widthWithEscapeCodes += 2 * backgroundColor.len;
+                const esc: []const u8 = comptime Color.Blue.foreground(.Bold) ++ backgroundColor;
+
+                try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
             },
             .Text => {
-                try buffer.appendSlice(Color.White.foreground(.Normal));
-                try buffer.appendSlice(backgroundColor);
-                widthWithEscapeCodes += 2 * backgroundColor.len;
+                const esc: []const u8 = comptime Color.White.foreground(.Normal) ++ backgroundColor;
+
+                try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
             },
             .BulletPoint => {
-                try buffer.appendSlice(Color.Green.foreground(.Normal));
-                try buffer.appendSlice(backgroundColor);
-                widthWithEscapeCodes += 2 * backgroundColor.len;
+                const esc: []const u8 = comptime Color.Green.foreground(.Normal) ++ backgroundColor;
+                const esc_back: []const u8 = comptime Color.White.foreground(.Normal) ++ backgroundColor;
+
+                try buffer.appendSlice(esc);
                 try buffer.appendSlice("▶ ");
-                try buffer.appendSlice(Color.White.foreground(.Normal));
-                try buffer.appendSlice(backgroundColor);
-                widthWithEscapeCodes += backgroundColor.len;
+                try buffer.appendSlice(esc_back);
                 try buffer.appendSlice(self.content.items);
             },
         }
 
-        try buffer.appendNTimes(' ', widthWithEscapeCodes -| buffer.items.len);
         try buffer.append('\n');
         return buffer.items;
     }

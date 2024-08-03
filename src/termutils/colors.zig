@@ -36,15 +36,15 @@ pub const Color = enum {
     White,
 
     pub fn foreground(comptime color: Color, comptime weight: Weight) []const u8 {
-        return Foreground.get(color, weight);
+        return comptime Foreground.get(color, weight);
     }
 
     pub fn background(comptime color: Color) []const u8 {
-        return Background.get(color);
+        return comptime Background.get(color);
     }
 
     pub fn to_standart_background(comptime color: Color) []const u8 {
-        return Background.get(color);
+        return comptime Background.get(color);
     }
 };
 
@@ -70,12 +70,12 @@ const Foreground = struct {
 
     /// Returns the escape sequence to change the foreground color and weight.
     fn get(comptime color: Color, comptime weight: Weight) []const u8 {
-        const sWeight = switch (weight) {
+        const sWeight = comptime switch (weight) {
             .Normal => "0;",
             .Bold => "1;",
         };
 
-        const sColor = switch (color) {
+        const sColor = comptime switch (color) {
             .Default => Default,
             .Black => Black,
             .DarkRed => DarkRed,
@@ -95,7 +95,7 @@ const Foreground = struct {
             .White => White,
         };
 
-        return csi ++ sWeight ++ sColor;
+        comptime return csi ++ sWeight ++ sColor;
     }
 };
 
@@ -121,7 +121,7 @@ const Background = struct {
 
     /// Returns the escape sequence to change the background color.
     fn get(comptime color: Color) []const u8 {
-        const sColor = switch (color) {
+        const sColor = comptime switch (color) {
             .Default => Default,
             .Black => Black,
             .DarkRed => DarkRed,
@@ -141,6 +141,6 @@ const Background = struct {
             .White => White,
         };
 
-        return csi ++ sColor;
+        comptime return csi ++ sColor;
     }
 };
