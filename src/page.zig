@@ -10,6 +10,7 @@ const PageError = error{
 pub const Page = struct {
     index: u32,
     rows: std.ArrayList(row.Row),
+    contentHight: u32,
     addons: ?[]PageAddon,
     size: ?*const termutils.size.TermSize,
 
@@ -20,6 +21,7 @@ pub const Page = struct {
         return Self{
             .index = index,
             .rows = rows,
+            .contentHight = 0,
             .addons = null,
             .size = null,
         };
@@ -34,6 +36,7 @@ pub const Page = struct {
 
     pub fn addRow(self: *Self, toAdd: row.Row) !void {
         try self.rows.append(toAdd);
+        self.contentHight += toAdd.get_height();
     }
 
     pub fn print_empty(size: termutils.size.TermSize, writer: anytype) !void {
@@ -68,7 +71,7 @@ pub const Page = struct {
             try writer.print("  {s}", .{pStr});
         }
 
-        const rest = self.size.?.row - self.rows.items.len - 1;
+        const rest = self.size.?.row - self.contentHight - 1;
 
         for (0..rest) |_| {
             try writer.print("\n", .{});

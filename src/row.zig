@@ -25,7 +25,6 @@ pub const HorizontalAlignment = enum {
 pub const RowOptions = struct {
     verticalAlignment: VerticalAlignment = .Left,
     horizontalAlignment: HorizontalAlignment = .Center,
-    height: u8 = 1,
     indent: u8 = 0,
 };
 
@@ -50,7 +49,6 @@ pub const Row = struct {
         content: []const u8,
         options: RowOptions,
     ) !Self {
-        // TODO: Use fromOwnedSlice
         var contentArray = std.ArrayList(u8).init(allocator);
         try contentArray.appendSlice(content);
 
@@ -71,6 +69,13 @@ pub const Row = struct {
         if (self.renderedContent) |renderedContent| {
             renderedContent.deinit();
         }
+    }
+
+    pub fn get_height(self: Self) u8 {
+        return switch (self.rowType) {
+            .Heading, .SubHeading => self.contentHeight + 1,
+            else => self.contentHeight,
+        };
     }
 
     // Returns the rendered content as []u8
@@ -98,12 +103,14 @@ pub const Row = struct {
 
                 try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
+                try buffer.append('\n');
             },
             .SubHeading => {
                 const esc: []const u8 = comptime Color.Blue.foreground(.Bold) ++ backgroundColor;
 
                 try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
+                try buffer.append('\n');
             },
             .Text => {
                 const esc: []const u8 = comptime Color.White.foreground(.Normal) ++ backgroundColor;

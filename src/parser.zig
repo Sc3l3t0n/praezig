@@ -25,6 +25,7 @@ pub const Parser = struct {
         try pages.append(try page.Page.init(allocator, index));
 
         while (iterator.next()) |token| {
+            if (token.len == 0) continue;
             if (mem.startsWith(u8, token, "# ")) {
                 const slice = token[2..];
                 const r = try row.Row.init(
@@ -53,11 +54,6 @@ pub const Parser = struct {
                 );
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "---")) {
-                if (iterator.peek()) |next| {
-                    if (next.len == 0) {
-                        _ = iterator.next();
-                    }
-                }
                 index += 1;
                 try pages.append(try page.Page.init(allocator, index));
             } else {
