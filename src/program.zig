@@ -65,6 +65,10 @@ pub const Program = struct {
 
         var index: usize = 0;
 
+        // Note: Fixes the first page missing some colors
+        try page.Page.print_empty(self.termsize, stdout);
+        try bw.flush();
+
         while (true) {
             var curPage = &self.pages.items[index];
             var buffer: [4]u8 = undefined;

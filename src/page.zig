@@ -36,6 +36,20 @@ pub const Page = struct {
         try self.rows.append(toAdd);
     }
 
+    pub fn print_empty(size: termutils.size.TermSize, writer: anytype) !void {
+        try writer.print(termutils.clearScreen, .{});
+        try writer.print(Color.Black.background(), .{});
+
+        for (0..size.col) |_| {
+            try writer.print(" ", .{});
+        }
+        const rest = size.row - 1;
+        for (0..rest) |_| {
+            try writer.print("\n", .{});
+        }
+        try writer.print(termutils.colors.reset, .{});
+    }
+
     pub fn print(self: *Self, writer: anytype) !void {
         if (self.size == null) {
             return PageError.SizeNotSet;
