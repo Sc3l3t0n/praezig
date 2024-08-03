@@ -19,6 +19,8 @@ pub const backspace = "\x08";
 
 /// Modify the style (colors and weight) of the terminal.
 pub const colors = @import("termutils/colors.zig");
+// Modify the style of the terminal.
+pub const style = @import("termutils/style.zig");
 /// Get the size of the terminal.
 pub const size = @import("termutils/size.zig");
 /// Manage Keyboard input.

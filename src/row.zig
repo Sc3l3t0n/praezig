@@ -1,5 +1,6 @@
 const std = @import("std");
 const Color = @import("termutils.zig").colors.Color;
+const Style = @import("termutils.zig").style.Style;
 
 pub const RowType = enum {
     Heading,
@@ -101,15 +102,19 @@ pub const Row = struct {
             .Heading => {
                 const esc: []const u8 = comptime Color.DarkYellow.foreground(.Bold) ++ backgroundColor;
 
+                try buffer.appendSlice(comptime Style.Bold.enable() ++ Style.Underline.enable());
                 try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
+                try buffer.appendSlice(comptime Style.Bold.disable() ++ Style.Underline.disable());
                 try buffer.append('\n');
             },
             .SubHeading => {
                 const esc: []const u8 = comptime Color.Blue.foreground(.Bold) ++ backgroundColor;
 
+                try buffer.appendSlice(comptime Style.Bold.enable() ++ Style.Underline.enable());
                 try buffer.appendSlice(esc);
                 try buffer.appendSlice(self.content.items);
+                try buffer.appendSlice(comptime Style.Bold.disable() ++ Style.Underline.disable());
                 try buffer.append('\n');
             },
             .Text => {
