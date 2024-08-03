@@ -3,12 +3,16 @@ const parser = @import("parser.zig");
 const termutils = @import("termutils.zig");
 const page = @import("page.zig");
 
+const Attributes = @import("attributes.zig").Attributes;
+const Parsed = parser.Parsed;
+
 pub const Program = struct {
     writer: std.io.AnyWriter,
     reader: std.io.AnyReader,
     allocator: std.mem.Allocator,
 
     pages: std.ArrayList(page.Page),
+    attributes: ?Attributes,
     termsize: termutils.size.TermSize,
 
     const Self = @This();
@@ -17,28 +21,15 @@ pub const Program = struct {
         allocator: std.mem.Allocator,
         writer: std.io.AnyWriter,
         reader: std.io.AnyReader,
-        content: []const u8,
-    ) !Self {
-        return Self{
-            .writer = writer,
-            .reader = reader,
-            .allocator = allocator,
-            .pages = try parser.Parser.parse(allocator, content),
-            .termsize = try termutils.size.getTerminalSize(),
-        };
-    }
-
-    pub fn initFromFile(
-        allocator: std.mem.Allocator,
-        writer: std.io.AnyWriter,
-        reader: std.io.AnyReader,
         path: []const u8,
     ) !Self {
+        const parsed = try parser.Parser.fromFile(allocator, path);
         return Self{
             .writer = writer,
             .reader = reader,
             .allocator = allocator,
-            .pages = try parser.Parser.fromFile(allocator, path),
+            .pages = parsed.pages,
+            .attributes = parsed.attributes,
             .termsize = try termutils.size.getTerminalSize(),
         };
     }
@@ -48,6 +39,7 @@ pub const Program = struct {
             p.deinit();
         }
         self.pages.deinit();
+        if (self.attributes) |a| @constCast(&a).deinit();
     }
 
     pub fn run(self: *Self) !void {

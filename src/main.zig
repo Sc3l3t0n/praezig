@@ -21,7 +21,7 @@ pub fn main() !void {
     };
     defer allocator.free(path);
 
-    var p = try program.Program.initFromFile(
+    var p = try program.Program.init(
         allocator,
         stdout.any(),
         stdin.any(),

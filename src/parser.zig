@@ -4,19 +4,26 @@ const page = @import("page.zig");
 const fs = std.fs;
 
 const mem = std.mem;
+const Attributes = @import("attributes.zig").Attributes;
+
+pub const Parsed = struct {
+    pages: std.ArrayList(page.Page),
+    attributes: ?Attributes,
+};
 
 pub const Parser = struct {
     pub fn parse(
         allocator: std.mem.Allocator,
         content: []const u8,
-    ) !std.ArrayList(page.Page) {
+    ) !Parsed {
         var iterator = mem.splitScalar(u8, content, '\n');
         var pages = std.ArrayList(page.Page).init(allocator);
         var index: u32 = 0;
 
+        const attributes = try parseAttributes(allocator, &iterator);
+
         try pages.append(try page.Page.init(allocator, index));
 
-        // NOTE: Do i need to free the memory of the tokens?
         while (iterator.next()) |token| {
             if (mem.startsWith(u8, token, "# ")) {
                 const slice = token[2..];
@@ -63,13 +70,13 @@ pub const Parser = struct {
                 try pages.items[index].addRow(r);
             }
         }
-        return pages;
+        return .{ .pages = pages, .attributes = attributes };
     }
 
     pub fn fromFile(
         allocator: std.mem.Allocator,
         path: []const u8,
-    ) !std.ArrayList(page.Page) {
+    ) !Parsed {
         const file = try fs.openFileAbsolute(path, .{});
         defer file.close();
 
@@ -79,6 +86,22 @@ pub const Parser = struct {
         try file.reader().readAllArrayList(&array, 50000);
 
         return try parse(allocator, array.items);
+    }
+
+    fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .scalar)) !?Attributes {
+        var attributes = Attributes.init(allocator);
+        if (iterator.peek()) |iToken| {
+            if (!mem.startsWith(u8, iToken, "---")) return null;
+            _ = iterator.next();
+            while (iterator.next()) |token| {
+                if (mem.startsWith(u8, token, "---")) {
+                    return attributes;
+                } else {
+                    try attributes.addAttribute(token);
+                }
+            }
+        }
+        return null;
     }
 };
 
@@ -90,7 +113,10 @@ test "Parser Headings" {
         \\# Heading 1
         \\# Heading 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
 
     const rows = pages.items[0].rows.items;
     try testing.expectEqual(2, rows.len);
@@ -105,7 +131,10 @@ test "Parser SubHeadings" {
         \\## SubHeading 1
         \\## SubHeading 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
 
     const rows = pages.items[0].rows.items;
 
@@ -122,7 +151,10 @@ test "Parser BulletPoints" {
         \\- BulletPoint 1
         \\- BulletPoint 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
     const rows = pages.items[0].rows.items;
 
     try testing.expectEqual(2, rows.len);
@@ -138,7 +170,10 @@ test "Parser Text" {
         \\Text 1
         \\Text 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
     const rows = pages.items[0].rows.items;
 
     try testing.expectEqual(2, rows.len);
@@ -151,10 +186,14 @@ test "Parser Text" {
 test "Parser Page" {
     const allocator = std.heap.page_allocator;
     const content =
+        \\# Heading 1
         \\---
         \\---
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
     try testing.expectEqual(3, pages.items.len);
 }
 
@@ -171,7 +210,7 @@ test "Parse Mixed" {
         \\- BulletPoint 2
         \\Text 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(allocator, content)).pages;
 
     try testing.expectEqual(2, pages.items.len);
     for (pages.items) |p| {
@@ -193,7 +232,30 @@ test "Skip Empty Line before Heading" {
         \\
         \\# Heading 2
     ;
-    const pages = try Parser.parse(allocator, content);
+    const pages = (try Parser.parse(
+        allocator,
+        content,
+    )).pages;
     const rows = pages.items[1].rows.items;
     try testing.expectEqual(1, rows.len);
     try testing.expectEqualStrings("Heading 2", rows[0].content.items);
+}
+
+test "Attributes are parsed" {
+    const allocator = std.heap.page_allocator;
+    const content =
+        \\---
+        \\.title: Test
+        \\---
+        \\# Heading 1
+    ;
+    const parsed = try Parser.parse(allocator, content);
+    try testing.expectEqualStrings(
+        "Test",
+        parsed.attributes.?.title.?.items,
+    );
+    try testing.expectEqualStrings(
+        "Heading 1",
+        parsed.pages.items[0].rows.items[0].content.items,
+    );
+}
