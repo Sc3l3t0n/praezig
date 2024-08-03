@@ -1,6 +1,7 @@
 const std = @import("std");
 const row = @import("row.zig");
 const termutils = @import("termutils.zig");
+const Color = termutils.colors.Color;
 
 const PageError = error{
     SizeNotSet,
@@ -41,7 +42,7 @@ pub const Page = struct {
         }
 
         try writer.print(termutils.clearScreen, .{});
-        try writer.print(termutils.colors.Background.get(.Black), .{});
+        try writer.print(Color.Black.background(), .{});
 
         for (0..self.size.?.col) |_| {
             try writer.print(" ", .{});
@@ -50,7 +51,7 @@ pub const Page = struct {
         for (self.rows.items) |*r| {
             // TODO: Use padding
             const pStr = try r.render(self.size.?.col - 2);
-            try writer.print("  {s}", .{pStr.*});
+            try writer.print("  {s}", .{pStr});
         }
 
         const rest = self.size.?.row - self.rows.items.len - 1;

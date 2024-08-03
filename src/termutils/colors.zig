@@ -4,6 +4,11 @@ const csi = esc ++ "[";
 /// Resets the terminal style to normal.
 pub const reset = csi ++ "0m";
 
+pub const reset_foreground = csi ++ "39m";
+pub const reset_background = csi ++ "49m";
+
+pub const default_foreground = csi ++ "K";
+
 /// All the weights that can be used in the terminal.
 pub const Weight = enum {
     Normal,
@@ -29,10 +34,22 @@ pub const Color = enum {
     Magenta,
     Cyan,
     White,
+
+    pub fn foreground(comptime color: Color, comptime weight: Weight) []const u8 {
+        return Foreground.get(color, weight);
+    }
+
+    pub fn background(comptime color: Color) []const u8 {
+        return Background.get(color);
+    }
+
+    pub fn to_standart_background(comptime color: Color) []const u8 {
+        return Background.get(color);
+    }
 };
 
 /// Used to change the foreground color and weight of the terminal.
-pub const Foreground = struct {
+const Foreground = struct {
     const Default = "39m";
     const Black = "30m";
     const DarkRed = "31m";
@@ -52,7 +69,7 @@ pub const Foreground = struct {
     const White = "97m";
 
     /// Returns the escape sequence to change the foreground color and weight.
-    pub fn get(comptime color: Color, comptime weight: Weight) []const u8 {
+    fn get(comptime color: Color, comptime weight: Weight) []const u8 {
         const sWeight = switch (weight) {
             .Normal => "0;",
             .Bold => "1;",
@@ -83,7 +100,7 @@ pub const Foreground = struct {
 };
 
 /// Used to change the background color of the terminal.
-pub const Background = struct {
+const Background = struct {
     const Default = "49m";
     const Black = "40m";
     const DarkRed = "41m";
@@ -103,7 +120,7 @@ pub const Background = struct {
     const White = "107m";
 
     /// Returns the escape sequence to change the background color.
-    pub fn get(comptime color: Color) []const u8 {
+    fn get(comptime color: Color) []const u8 {
         const sColor = switch (color) {
             .Default => Default,
             .Black => Black,
