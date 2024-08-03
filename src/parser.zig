@@ -46,6 +46,11 @@ pub const Parser = struct {
                 );
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "---")) {
+                if (iterator.peek()) |next| {
+                    if (next.len == 0) {
+                        _ = iterator.next();
+                    }
+                }
                 index += 1;
                 try pages.append(try page.Page.init(allocator, index));
             } else {
@@ -179,3 +184,16 @@ test "Parse Mixed" {
         try testing.expectEqual(.Text, rows[3].rowType);
     }
 }
+
+test "Skip Empty Line before Heading" {
+    const allocator = std.heap.page_allocator;
+    const content =
+        \\# Heading 1
+        \\---
+        \\
+        \\# Heading 2
+    ;
+    const pages = try Parser.parse(allocator, content);
+    const rows = pages.items[1].rows.items;
+    try testing.expectEqual(1, rows.len);
+    try testing.expectEqualStrings("Heading 2", rows[0].content.items);
