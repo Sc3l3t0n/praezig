@@ -18,11 +18,14 @@
 
 **praezig** is in early development and has some constraints:
 
+#### Supported Platforms
+
+- **praezig** is currently supported on Linux and Windows for most functionalities.
+
 #### Coloring and Styling
 
 - Coloring and styling only work with terminals that support ANSI escape codes.
 - Some features may not work on all terminals.
-- Windows terminal support is not guaranteed but is planned for future releases.
 
 ## How to use praezig?
 

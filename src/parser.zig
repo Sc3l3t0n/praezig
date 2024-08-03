@@ -16,7 +16,12 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
         content: []const u8,
     ) !Parsed {
-        var iterator = mem.splitScalar(u8, content, '\n');
+        const win_encoded = std.mem.containsAtLeast(u8, content, 1, "\r\n");
+        var iterator = if (win_encoded)
+            mem.splitSequence(u8, content, "\r\n")
+        else
+            mem.splitSequence(u8, content, "\n");
+
         var pages = std.ArrayList(page.Page).init(allocator);
         var index: u32 = 0;
 
@@ -84,7 +89,7 @@ pub const Parser = struct {
         return try parse(allocator, array.items);
     }
 
-    fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .scalar)) !?Attributes {
+    fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
         var attributes = Attributes.init(allocator);
         if (iterator.peek()) |iToken| {
             if (!mem.startsWith(u8, iToken, "---")) return null;

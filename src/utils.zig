@@ -11,7 +11,8 @@ const CliError = error{
 pub fn get_path_arg(allocator: std.mem.Allocator) ![]u8 {
     const stderr = std.io.getStdErr().writer();
 
-    var args = std.process.args();
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
     _ = args.next();
 
     const rel_path = args.next() orelse {

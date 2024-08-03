@@ -128,7 +128,7 @@ pub const Row = struct {
                 const esc_back: []const u8 = comptime Color.White.foreground(.Normal) ++ backgroundColor;
 
                 try buffer.appendSlice(esc);
-                try buffer.appendSlice("▶ ");
+                try buffer.appendSlice(if (@import("builtin").os.tag == .windows) "* " else "▶ ");
                 try buffer.appendSlice(esc_back);
                 try buffer.appendSlice(self.content.items);
             },
