@@ -10,31 +10,51 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
         content: []const u8,
     ) !std.ArrayList(page.Page) {
-        var tokenIterator = mem.tokenize(u8, content, "\n");
+        var iterator = mem.splitScalar(u8, content, '\n');
         var pages = std.ArrayList(page.Page).init(allocator);
         var index: u32 = 0;
 
         try pages.append(try page.Page.init(allocator, index));
 
         // NOTE: Do i need to free the memory of the tokens?
-        while (tokenIterator.next()) |token| {
+        while (iterator.next()) |token| {
             if (mem.startsWith(u8, token, "# ")) {
                 const slice = token[2..];
-                const r = try row.Row.init(allocator, .Heading, slice, .{});
+                const r = try row.Row.init(
+                    allocator,
+                    .Heading,
+                    slice,
+                    .{},
+                );
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "## ")) {
                 const slice = token[3..];
-                const r = try row.Row.init(allocator, .SubHeading, slice, .{});
+                const r = try row.Row.init(
+                    allocator,
+                    .SubHeading,
+                    slice,
+                    .{},
+                );
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "- ")) {
                 const slice = token[2..];
-                const r = try row.Row.init(allocator, .BulletPoint, slice, .{});
+                const r = try row.Row.init(
+                    allocator,
+                    .BulletPoint,
+                    slice,
+                    .{},
+                );
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "---")) {
                 index += 1;
                 try pages.append(try page.Page.init(allocator, index));
             } else {
-                const r = try row.Row.init(allocator, .Text, token, .{});
+                const r = try row.Row.init(
+                    allocator,
+                    .Text,
+                    token,
+                    .{},
+                );
                 try pages.items[index].addRow(r);
             }
         }
