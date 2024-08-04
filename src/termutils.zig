@@ -2,17 +2,17 @@ const esc = "\x1B";
 const csi = esc ++ "[";
 
 /// Escape sequence to clear the screen.
-pub const clearScreen = csi ++ "2J";
+pub const clear_screen = csi ++ "2J";
 
 /// Escape sequence to switch to the alternate screen.
-pub const alternateScreen = csi ++ "?1049h";
+pub const alternate_screen = csi ++ "?1049h";
 /// Escape sequence to switch back to the main screen.
-pub const mainScreen = csi ++ "?1049l";
+pub const main_screen = csi ++ "?1049l";
 
 /// Escape sequence to remove the cursor.
-pub const cursorHide = csi ++ "?25l";
+pub const cursor_hide = csi ++ "?25l";
 /// Escape sequence to show the cursor.
-pub const cursorShow = csi ++ "?25h";
+pub const cursor_show = csi ++ "?25h";
 
 /// Backspace character.
 pub const backspace = "\x08";

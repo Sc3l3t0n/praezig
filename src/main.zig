@@ -16,7 +16,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Parse command line arguments
-    const path = utils.get_path_arg(allocator) catch {
+    const path = utils.getPathArg(allocator) catch {
         return;
     };
     defer allocator.free(path);

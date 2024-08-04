@@ -46,8 +46,8 @@ pub const Program = struct {
         var bw = std.io.bufferedWriter(self.writer);
         const stdout = bw.writer();
 
-        try stdout.print(termutils.alternateScreen, .{});
-        try stdout.print(termutils.cursorHide, .{});
+        try stdout.print(termutils.alternate_screen, .{});
+        try stdout.print(termutils.cursor_hide, .{});
         try bw.flush();
 
         try termutils.kb_input.setRawMode(true);
@@ -58,7 +58,7 @@ pub const Program = struct {
         var index: usize = 0;
 
         // Note: Fixes the first page missing some colors
-        try page.Page.print_empty(self.termsize, stdout);
+        try page.Page.printEmpty(self.termsize, stdout);
         try bw.flush();
 
         while (true) {
@@ -79,7 +79,7 @@ pub const Program = struct {
             try stdout.print(termutils.backspace, .{});
         }
 
-        try stdout.print(termutils.mainScreen, .{});
+        try stdout.print(termutils.main_screen, .{});
         try bw.flush();
     }
 

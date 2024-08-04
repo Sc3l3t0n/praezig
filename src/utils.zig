@@ -8,7 +8,7 @@ const CliError = error{
 
 // Returns the path argument passed to the program
 // If no path is provided, prints an error message to stderr and returns an error
-pub fn get_path_arg(allocator: std.mem.Allocator) ![]u8 {
+pub fn getPathArg(allocator: std.mem.Allocator) ![]u8 {
     const stderr = std.io.getStdErr().writer();
 
     var args = try std.process.argsWithAllocator(allocator);

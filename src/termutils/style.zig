@@ -2,38 +2,38 @@ const esc = "\x1B";
 const csi = esc ++ "[";
 
 pub const Style = enum {
-    Bold,
-    Faint,
-    Italic,
-    Underline,
-    Blinking,
-    Reverse,
-    Invisible,
-    Strikethrough,
+    bold,
+    faint,
+    italic,
+    underline,
+    blinking,
+    inverse,
+    invisible,
+    strikethrough,
 
     pub fn enable(comptime self: Style) []const u8 {
         return comptime switch (self) {
-            Style.Bold => csi ++ "1m",
-            Style.Faint => csi ++ "2m",
-            Style.Italic => csi ++ "3m",
-            Style.Underline => csi ++ "4m",
-            Style.Blinking => csi ++ "5m",
-            Style.Reverse => csi ++ "7m",
-            Style.Invisible => csi ++ "8m",
-            Style.Strikethrough => csi ++ "9m",
+            .bold => csi ++ "1m",
+            .faint => csi ++ "2m",
+            .italic => csi ++ "3m",
+            .underline => csi ++ "4m",
+            .blinking => csi ++ "5m",
+            .inverse => csi ++ "7m",
+            .invisible => csi ++ "8m",
+            .strikethrough => csi ++ "9m",
         };
     }
 
     pub fn disable(comptime self: Style) []const u8 {
         return comptime switch (self) {
-            Style.Bold => csi ++ "22m",
-            Style.Faint => csi ++ "22m",
-            Style.Italic => csi ++ "23m",
-            Style.Underline => csi ++ "24m",
-            Style.Blinking => csi ++ "25m",
-            Style.Reverse => csi ++ "27m",
-            Style.Invisible => csi ++ "28m",
-            Style.Strikethrough => csi ++ "29m",
+            .bold => csi ++ "22m",
+            .faint => csi ++ "22m",
+            .italic => csi ++ "23m",
+            .underline => csi ++ "24m",
+            .blinking => csi ++ "25m",
+            .inverse => csi ++ "27m",
+            .invisible => csi ++ "28m",
+            .strikethrough => csi ++ "29m",
         };
     }
 };

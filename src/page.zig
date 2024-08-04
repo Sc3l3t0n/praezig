@@ -10,7 +10,7 @@ const PageError = error{
 pub const Page = struct {
     index: u32,
     rows: std.ArrayList(row.Row),
-    contentHight: u32,
+    content_hight: u32,
     addons: ?[]PageAddon,
     size: ?*const termutils.size.TermSize,
 
@@ -21,7 +21,7 @@ pub const Page = struct {
         return Self{
             .index = index,
             .rows = rows,
-            .contentHight = 0,
+            .content_hight = 0,
             .addons = null,
             .size = null,
         };
@@ -36,12 +36,12 @@ pub const Page = struct {
 
     pub fn addRow(self: *Self, toAdd: row.Row) !void {
         try self.rows.append(toAdd);
-        self.contentHight += toAdd.get_height();
+        self.content_hight += toAdd.get_height();
     }
 
-    pub fn print_empty(size: termutils.size.TermSize, writer: anytype) !void {
-        try writer.print(termutils.clearScreen, .{});
-        try writer.print(Color.Black.background(), .{});
+    pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
+        try writer.print(termutils.clear_screen, .{});
+        try writer.print(Color.black.background(), .{});
 
         for (0..size.col) |_| {
             try writer.print(" ", .{});
@@ -58,8 +58,8 @@ pub const Page = struct {
             return PageError.SizeNotSet;
         }
 
-        try writer.print(termutils.clearScreen, .{});
-        try writer.print(Color.Black.background(), .{});
+        try writer.print(termutils.clear_screen, .{});
+        try writer.print(Color.black.background(), .{});
 
         for (0..self.size.?.col) |_| {
             try writer.print(" ", .{});
@@ -71,7 +71,7 @@ pub const Page = struct {
             try writer.print("  {s}", .{pStr});
         }
 
-        const rest = self.size.?.row - self.contentHight - 1;
+        const rest = self.size.?.row - self.content_hight - 1;
 
         for (0..rest) |_| {
             try writer.print("\n", .{});
