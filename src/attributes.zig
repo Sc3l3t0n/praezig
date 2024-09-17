@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const Title = @import("pageaddons.zig").Title;
+const Page = @import("page.zig").Page;
+
 const AttributeError = error{
     UnknownAttribute,
 };
@@ -7,7 +10,7 @@ const AttributeError = error{
 pub const Attributes = struct {
     allocator: std.mem.Allocator,
 
-    title: ?std.ArrayList(u8) = null,
+    title: ?Title = null,
 
     const Self = @This();
 
@@ -18,15 +21,12 @@ pub const Attributes = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        if (self.title) |title| {
-            title.deinit();
-        }
+        if (self.title) |*title| title.deinit();
     }
 
     pub fn addAttribute(self: *Self, line: []const u8) !void {
         if (std.mem.startsWith(u8, line, ".title: ")) {
-            self.title = std.ArrayList(u8).init(self.allocator);
-            try self.title.?.appendSlice(line[8..]);
+            self.title = try Title.init(self.allocator, line[8..]);
         } else {
             return AttributeError.UnknownAttribute;
         }
@@ -39,7 +39,7 @@ test "title is parsed" {
     var attributes = Attributes.init(t.allocator);
     try attributes.addAttribute(".title: Hello, World!");
     defer attributes.deinit();
-    try t.expectEqualStrings("Hello, World!", attributes.title.?.items);
+    try t.expectEqualStrings("Hello, World!", attributes.title.?.value.items);
 }
 
 test "unknown attribute" {

@@ -69,6 +69,12 @@ pub const Row = struct {
         };
     }
 
+    pub fn print_empty(writer: anytype, width: usize) !void {
+        for (0..width) |_| {
+            try writer.print(" ", .{});
+        }
+    }
+
     // Returns the rendered content as []u8
     // The rendered content is stored in the struct for future use.
     pub fn render(

@@ -24,7 +24,7 @@ pub const Program = struct {
         path: []const u8,
     ) !Self {
         const parsed = try parser.Parser.fromFile(allocator, path);
-        return Self{
+        const self = Self{
             .writer = writer,
             .reader = reader,
             .allocator = allocator,
@@ -32,6 +32,7 @@ pub const Program = struct {
             .attributes = parsed.attributes,
             .termsize = try termutils.size.getTerminalSize(),
         };
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -39,7 +40,13 @@ pub const Program = struct {
             p.deinit();
         }
         self.pages.deinit();
-        if (self.attributes) |a| @constCast(&a).deinit();
+        if (self.attributes) |*a| a.deinit();
+    }
+
+    pub fn setup(self: *Self) void {
+        for (self.pages.items) |*p| {
+            p.attributes = &self.attributes.?;
+        }
     }
 
     pub fn run(self: *Self) !void {

@@ -28,6 +28,7 @@ pub fn main() !void {
         path,
     );
     defer p.deinit();
+    p.setup();
     try p.run();
 }
 

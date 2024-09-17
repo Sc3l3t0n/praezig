@@ -1,7 +1,10 @@
 const std = @import("std");
 const row = @import("row.zig");
 const termutils = @import("termutils.zig");
+
 const Color = termutils.colors.Color;
+const Attributes = @import("attributes.zig").Attributes;
+const Row = row.Row;
 
 const PageError = error{
     SizeNotSet,
@@ -9,20 +12,19 @@ const PageError = error{
 
 pub const Page = struct {
     index: u32,
-    rows: std.ArrayList(row.Row),
-    content_hight: u32,
-    addons: ?[]PageAddon,
+    rows: std.ArrayList(Row),
+    content_height: u32,
+    attributes: ?*Attributes = null,
     size: ?*const termutils.size.TermSize,
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, index: u32) !Self {
-        const rows = std.ArrayList(row.Row).init(allocator);
+        const rows = std.ArrayList(Row).init(allocator);
         return Self{
             .index = index,
             .rows = rows,
-            .content_hight = 0,
-            .addons = null,
+            .content_height = 0,
             .size = null,
         };
     }
@@ -34,9 +36,9 @@ pub const Page = struct {
         self.rows.deinit();
     }
 
-    pub fn addRow(self: *Self, toAdd: row.Row) !void {
+    pub fn addRow(self: *Self, toAdd: Row) !void {
         try self.rows.append(toAdd);
-        self.content_hight += toAdd.get_height();
+        self.content_height += toAdd.get_height();
     }
 
     pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
@@ -61,9 +63,20 @@ pub const Page = struct {
         try writer.print(termutils.clear_screen, .{});
         try writer.print(Color.black.background(), .{});
 
-        for (0..self.size.?.col) |_| {
-            try writer.print(" ", .{});
+        try Row.print_empty(writer, self.size.?.col);
+
+        var rest = self.size.?.row - 2;
+
+        if (self.attributes) |*attributes| {
+            if (attributes.*.title) |*title| {
+                try writer.print("{s}", .{try title.render(self.size.?.col)});
+                rest -= 2;
+            }
         }
+
+        try Row.print_empty(writer, self.size.?.col);
+
+        rest -= 1;
 
         for (self.rows.items) |*r| {
             // TODO: Use padding
@@ -71,7 +84,7 @@ pub const Page = struct {
             try writer.print("  {s}", .{pStr});
         }
 
-        const rest = self.size.?.row - self.content_hight - 1;
+        rest -= self.content_height - 1;
 
         for (0..rest) |_| {
             try writer.print("\n", .{});
@@ -79,5 +92,3 @@ pub const Page = struct {
         try writer.print(termutils.colors.reset, .{});
     }
 };
-
-pub const PageAddon = struct {};
