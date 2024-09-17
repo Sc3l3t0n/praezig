@@ -56,8 +56,8 @@ pub const Program = struct {
         }
 
         var index: usize = 0;
-
-        // Note: Fixes the first page missing some colors
+        var prevIndex: usize = 1;
+        // NOTE: Fixes the first page missing some colors
         try page.Page.printEmpty(self.termsize, stdout);
         try bw.flush();
 
@@ -65,8 +65,14 @@ pub const Program = struct {
             var curPage = &self.pages.items[index];
             var buffer: [4]u8 = undefined;
             curPage.size = &self.termsize;
-            try curPage.print(stdout);
-            try bw.flush();
+
+            if (index != prevIndex) {
+                try curPage.print(stdout);
+                try bw.flush();
+            }
+
+            prevIndex = index;
+
             _ = try self.reader.read(buffer[0..]);
 
             switch (checkInput(&buffer)) {
