@@ -141,9 +141,9 @@ test "Parser SubHeadings" {
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("SubHeading 1", rows[0].content.items);
-    try testing.expectEqual(.SubHeading, rows[0].rowType);
+    try testing.expectEqual(.SubHeading, rows[0].row_type);
     try testing.expectEqualStrings("SubHeading 2", rows[1].content.items);
-    try testing.expectEqual(.SubHeading, rows[1].rowType);
+    try testing.expectEqual(.SubHeading, rows[1].row_type);
 }
 
 test "Parser BulletPoints" {
@@ -160,9 +160,9 @@ test "Parser BulletPoints" {
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("BulletPoint 1", rows[0].content.items);
-    try testing.expectEqual(.BulletPoint, rows[0].rowType);
+    try testing.expectEqual(.BulletPoint, rows[0].row_type);
     try testing.expectEqualStrings("BulletPoint 2", rows[1].content.items);
-    try testing.expectEqual(.BulletPoint, rows[1].rowType);
+    try testing.expectEqual(.BulletPoint, rows[1].row_type);
 }
 
 test "Parser Text" {
@@ -179,9 +179,9 @@ test "Parser Text" {
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("Text 1", rows[0].content.items);
-    try testing.expectEqual(.Text, rows[0].rowType);
+    try testing.expectEqual(.Text, rows[0].row_type);
     try testing.expectEqualStrings("Text 2", rows[1].content.items);
-    try testing.expectEqual(.Text, rows[1].rowType);
+    try testing.expectEqual(.Text, rows[1].row_type);
 }
 
 test "Parser Page" {
@@ -218,10 +218,10 @@ test "Parse Mixed" {
         const rows = p.rows.items;
 
         try testing.expectEqual(4, rows.len);
-        try testing.expectEqual(.Heading, rows[0].rowType);
-        try testing.expectEqual(.SubHeading, rows[1].rowType);
-        try testing.expectEqual(.BulletPoint, rows[2].rowType);
-        try testing.expectEqual(.Text, rows[3].rowType);
+        try testing.expectEqual(.Heading, rows[0].row_type);
+        try testing.expectEqual(.SubHeading, rows[1].row_type);
+        try testing.expectEqual(.BulletPoint, rows[2].row_type);
+        try testing.expectEqual(.Text, rows[3].row_type);
     }
 }
 
@@ -253,7 +253,7 @@ test "Attributes are parsed" {
     const parsed = try Parser.parse(allocator, content);
     try testing.expectEqualStrings(
         "Test",
-        parsed.attributes.?.title.?.items,
+        parsed.attributes.?.title.?.value.items,
     );
     try testing.expectEqualStrings(
         "Heading 1",
