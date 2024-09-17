@@ -1,4 +1,6 @@
 const std = @import("std");
+const style = @import("style.zig");
+
 const Color = @import("termutils.zig").colors.Color;
 const Style = @import("termutils.zig").style.Style;
 
@@ -11,21 +13,9 @@ pub const RowType = enum {
     // TODO: NumberedPoint,
 };
 
-pub const VerticalAlignment = enum {
-    Left,
-    Center,
-    Right,
-};
-
-pub const HorizontalAlignment = enum {
-    Top,
-    Center,
-    Bottom,
-};
-
 pub const RowOptions = struct {
-    verticalAlignment: VerticalAlignment = .Left,
-    horizontalAlignment: HorizontalAlignment = .Center,
+    verticalAlignment: style.VerticalAlignment = .center,
+    horizontalAlignment: style.HorizontalAlignment = .left,
     indent: u8 = 0,
 };
 
