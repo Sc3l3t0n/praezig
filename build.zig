@@ -15,12 +15,19 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const markdown_zig = b.dependency("markdown-zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "praezig",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    exe.root_module.addImport("markdown", markdown_zig.module("markdown_zig"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
