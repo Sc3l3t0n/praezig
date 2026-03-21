@@ -27,7 +27,7 @@ fn setRawModeWindows(enable: bool) !void {
 
     var mode: u32 = 0;
 
-    const fd = std.io.getStdIn().handle;
+    const fd = std.Io.File.stdin().handle;
     const err = GetConsoleMode(GetStdHandle(fd), @intFromPtr(&mode));
     if (err != 0) {
         return KBError.Unexpected;
@@ -54,7 +54,7 @@ fn setRawModeLinux(enable: bool) !void {
 
     var current: termios = undefined;
 
-    const fd = std.io.getStdIn().handle;
+    const fd = std.Io.File.stdin().handle;
     const errGet = std.os.linux.ioctl(fd, TCGETS, @intFromPtr(&current));
     switch (std.posix.errno(errGet)) {
         .SUCCESS => {},

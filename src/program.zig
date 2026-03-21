@@ -5,57 +5,59 @@ const page = @import("page.zig");
 
 const Attributes = @import("attributes.zig").Attributes;
 const Parsed = parser.Parsed;
+const Allocator = std.mem.Allocator;
+const Writer = std.Io.Writer;
+const Reader = std.Io.Reader;
 
 pub const Program = struct {
-    writer: std.io.AnyWriter,
-    reader: std.io.AnyReader,
+    stdout: *Writer,
+    stdin: *Reader,
     allocator: std.mem.Allocator,
 
     pages: std.ArrayList(page.Page),
     attributes: ?Attributes,
     termsize: termutils.size.TermSize,
 
-    const Self = @This();
-
     pub fn init(
-        allocator: std.mem.Allocator,
-        writer: std.io.AnyWriter,
-        reader: std.io.AnyReader,
+        io: std.Io,
+        allocator: Allocator,
+        stdout: *Writer,
+        stdin: *Reader,
         path: []const u8,
-    ) !Self {
-        const parsed = try parser.Parser.fromFile(allocator, path);
-        const self = Self{
-            .writer = writer,
-            .reader = reader,
+    ) !Program {
+        const parsed = try parser.Parser.fromFile(io, allocator, path);
+        return .{
+            .stdout = stdout,
+            .stdin = stdin,
             .allocator = allocator,
             .pages = parsed.pages,
             .attributes = parsed.attributes,
-            .termsize = try termutils.size.getTerminalSize(),
+            .termsize = try termutils.size.getTerminalSize(io),
         };
-        return self;
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *Program) void {
         for (self.pages.items) |*p| {
             p.deinit();
         }
-        self.pages.deinit();
+        self.pages.deinit(self.allocator);
         if (self.attributes) |*a| a.deinit();
     }
 
-    pub fn setup(self: *Self) void {
-        for (self.pages.items) |*p| {
-            p.attributes = &self.attributes.?;
+    pub fn setup(self: *Program) void {
+        if (self.attributes) |*attributes| {
+            for (self.pages.items) |*p| {
+                p.attributes = attributes;
+            }
         }
     }
 
-    pub fn run(self: *Self) !void {
-        var bw = std.io.bufferedWriter(self.writer);
-        const stdout = bw.writer();
+    pub fn run(self: *Program) !void {
+        const stdout = self.stdout;
 
         try stdout.print(termutils.alternate_screen, .{});
         try stdout.print(termutils.cursor_hide, .{});
-        try bw.flush();
+        try stdout.flush();
 
         try termutils.kb_input.setRawMode(true);
         defer {
@@ -66,23 +68,20 @@ pub const Program = struct {
         var prevIndex: usize = 1;
         // NOTE: Fixes the first page missing some colors
         try page.Page.printEmpty(self.termsize, stdout);
-        try bw.flush();
+        try stdout.flush();
 
         while (true) {
             var curPage = &self.pages.items[index];
-            var buffer: [4]u8 = undefined;
             curPage.size = &self.termsize;
 
             if (index != prevIndex) {
                 try curPage.print(stdout);
-                try bw.flush();
+                try stdout.flush();
             }
 
             prevIndex = index;
 
-            _ = try self.reader.read(buffer[0..]);
-
-            switch (checkInput(&buffer)) {
+            switch (try KeyInput.fromStdin(self.stdin)) {
                 .Quit => break,
                 .Next => index = std.math.clamp(index + 1, 0, self.pages.items.len - 1),
                 .Previous => index = std.math.clamp(index -| 1, 0, self.pages.items.len - 1),
@@ -93,7 +92,7 @@ pub const Program = struct {
         }
 
         try stdout.print(termutils.main_screen, .{});
-        try bw.flush();
+        try stdout.flush();
     }
 
     const KeyInput = enum {
@@ -101,20 +100,90 @@ pub const Program = struct {
         Next,
         Previous,
         None,
-    };
 
-    fn checkInput(buffer: []u8) KeyInput {
-        return switch (buffer[0]) {
-            'q' => KeyInput.Quit,
-            ' ', 'l' => KeyInput.Next,
-            'h' => KeyInput.Previous,
-            else => if (buffer.len >= 3) {
-                return switch (buffer[2]) {
-                    'D' => KeyInput.Previous,
-                    'C' => KeyInput.Next,
-                    else => KeyInput.None,
-                };
-            } else KeyInput.None,
-        };
-    }
+        fn fromStdin(stdin: *Reader) !KeyInput {
+            switch (try stdin.peekByte()) {
+                'q', ' ', 'l', 'h' => |c| {
+                    stdin.toss(1);
+                    return .fromSlice(&.{c});
+                },
+                '\x1b' => {
+                    const esc = try stdin.take(3);
+                    return .fromSlice(esc);
+                },
+                else => {
+                    stdin.toss(1);
+                    return .None;
+                },
+            }
+        }
+
+        fn fromSlice(slice: []const u8) KeyInput {
+            if (slice.len == 0) return .None;
+
+            return switch (slice[0]) {
+                'q' => .Quit,
+                ' ', 'l' => .Next,
+                'h' => .Previous,
+                '\x1b' => if (slice.len >= 3) switch (slice[2]) {
+                    'D' => .Previous,
+                    'C' => .Next,
+                    else => .None,
+                } else .None,
+                else => .None,
+            };
+        }
+
+        test "fromSlice handles known keys" {
+            const cases = .{
+                .{ "q", .Quit },
+                .{ " ", .Next },
+                .{ "l", .Next },
+                .{ "h", .Previous },
+                .{ &.{ '\x1b', '[', 'C' }, .Next },
+                .{ &.{ '\x1b', '[', 'D' }, .Previous },
+            };
+            inline for (cases) |case| {
+                try std.testing.expectEqual(case[1], fromSlice(case[0]));
+            }
+        }
+
+        test "fromSlice ignores unsupported input" {
+            const cases = .{
+                "",
+                "x",
+                &.{ '\x1b', '[' },
+                &.{ '\x1b', '[', 'A' },
+            };
+            inline for (cases) |case| {
+                try std.testing.expectEqual(.None, fromSlice(case));
+            }
+        }
+
+        test "fromStdin handles known keys" {
+            const cases = .{
+                .{ "qx", .Quit, 'x' },
+                .{ " l", .Next, 'l' },
+                .{ "hy", .Previous, 'y' },
+                .{ &.{ '\x1b', '[', 'C', 'z' }, .Next, 'z' },
+            };
+            inline for (cases) |case| {
+                var reader: std.Io.Reader = .fixed(case[0]);
+                try std.testing.expectEqual(case[1], try fromStdin(&reader));
+                try std.testing.expectEqual(case[2], try reader.peekByte());
+            }
+        }
+
+        test "fromStdin consumes unsupported input" {
+            const cases = .{
+                .{ "xq", 'q' },
+                .{ &.{ '\x1b', '[', 'A', 'q' }, 'q' },
+            };
+            inline for (cases) |case| {
+                var reader: std.Io.Reader = .fixed(case[0]);
+                try std.testing.expectEqual(.None, try fromStdin(&reader));
+                try std.testing.expectEqual(case[1], try reader.peekByte());
+            }
+        }
+    };
 };

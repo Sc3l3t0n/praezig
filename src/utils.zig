@@ -1,29 +1,31 @@
 const std = @import("std");
 
-// Error type for CLI errors
-const CliError = error{
-    // Error for when no path argument is provided
-    MissingArgument,
-};
+const Dir = std.Io.Dir;
+const Allocator = std.mem.Allocator;
 
 // Returns the path argument passed to the program
 // If no path is provided, prints an error message to stderr and returns an error
-pub fn getPathArg(allocator: std.mem.Allocator) ![]u8 {
-    const stderr = std.io.getStdErr().writer();
+pub fn extractPathArg(
+    gpa: Allocator,
+    args: std.process.Args,
+) (error{MissingPathArgument} || Allocator.Error)![]u8 {
+    var iter = try args.iterateAllocator(gpa);
+    defer iter.deinit();
 
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-    _ = args.next();
+    _ = iter.next();
 
-    const rel_path = args.next() orelse {
-        try stderr.print("No path provided", .{});
-        return CliError.MissingArgument;
+    const rel_path = iter.next() orelse {
+        return error.MissingPathArgument;
     };
 
-    const path = std.fs.cwd().realpathAlloc(allocator, rel_path) catch |err| {
-        try std.io.getStdErr().writer().print("Path is invalid: {s}\n", .{rel_path});
-        return err;
-    };
+    return try gpa.dupe(u8, rel_path);
+}
 
-    return path;
+pub fn validatePath(io: std.Io, path: []const u8) bool {
+    if (std.fs.path.isAbsolute(path)) {
+        Dir.accessAbsolute(io, path, .{}) catch return false;
+    } else {
+        Dir.cwd().access(io, path, .{}) catch return false;
+    }
+    return true;
 }

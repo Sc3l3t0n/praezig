@@ -1,9 +1,10 @@
 const std = @import("std");
 const row = @import("row.zig");
 const page = @import("page.zig");
+const mem = std.mem;
 const fs = std.fs;
 
-const mem = std.mem;
+const Io = std.Io;
 const Attributes = @import("attributes.zig").Attributes;
 
 pub const Parsed = struct {
@@ -12,22 +13,23 @@ pub const Parsed = struct {
 };
 
 pub const Parser = struct {
+    // TODO: Use reader for this parsing
     pub fn parse(
-        allocator: std.mem.Allocator,
+        allocator: mem.Allocator,
         content: []const u8,
     ) !Parsed {
-        const win_encoded = std.mem.containsAtLeast(u8, content, 1, "\r\n");
+        const win_encoded = mem.containsAtLeast(u8, content, 1, "\r\n");
         var iterator = if (win_encoded)
             mem.splitSequence(u8, content, "\r\n")
         else
             mem.splitSequence(u8, content, "\n");
 
-        var pages = std.ArrayList(page.Page).init(allocator);
+        var pages = std.ArrayList(page.Page).empty;
         var index: u32 = 0;
 
         const attributes = try parseAttributes(allocator, &iterator);
 
-        try pages.append(try page.Page.init(allocator, index));
+        try pages.append(allocator, try page.Page.init(allocator, index));
 
         while (iterator.next()) |token| {
             if (token.len == 0) continue;
@@ -60,7 +62,7 @@ pub const Parser = struct {
                 try pages.items[index].addRow(r);
             } else if (mem.startsWith(u8, token, "---")) {
                 index += 1;
-                try pages.append(try page.Page.init(allocator, index));
+                try pages.append(allocator, try page.Page.init(allocator, index));
             } else {
                 const r = try row.Row.init(
                     allocator,
@@ -75,18 +77,26 @@ pub const Parser = struct {
     }
 
     pub fn fromFile(
-        allocator: std.mem.Allocator,
+        io: Io,
+        allocator: mem.Allocator,
         path: []const u8,
     ) !Parsed {
-        const file = try fs.openFileAbsolute(path, .{});
-        defer file.close();
+        const file = if (fs.path.isAbsolute(path))
+            try Io.Dir.openFileAbsolute(io, path, .{})
+        else
+            try Io.Dir.cwd().openFile(io, path, .{});
 
-        var array = std.ArrayList(u8).init(allocator);
-        defer array.deinit();
+        defer file.close(io);
 
-        try file.reader().readAllArrayList(&array, 50000);
+        var file_buf: [1024]u8 = undefined;
+        var file_reader = file.reader(io, &file_buf);
+        const file_content = try file_reader.interface.allocRemaining(
+            allocator,
+            .limited(1024 * 1024 * 1024),
+        );
+        defer allocator.free(file_content);
 
-        return try parse(allocator, array.items);
+        return try parse(allocator, file_content);
     }
 
     fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
