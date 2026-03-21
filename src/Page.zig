@@ -38,7 +38,7 @@ pub fn addRow(page: *Page, gpa: std.mem.Allocator, toAdd: Row) !void {
     page.content_height += toAdd.get_height();
 }
 
-pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
+pub fn printEmpty(size: termutils.size.TermSize, writer: *std.Io.Writer) !void {
     try writer.print(termutils.clear_screen, .{});
     try writer.print(Color.black.background(), .{});
 
@@ -52,7 +52,7 @@ pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
     try writer.print(termutils.colors.reset, .{});
 }
 
-pub fn print(page: *Page, gpa: std.mem.Allocator, writer: anytype) !void {
+pub fn print(page: *Page, gpa: std.mem.Allocator, writer: *std.Io.Writer) !void {
     if (page.size == null) {
         return Error.SizeNotSet;
     }

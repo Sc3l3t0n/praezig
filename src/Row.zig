@@ -60,7 +60,7 @@ pub fn get_height(row: Row) u8 {
     };
 }
 
-pub fn print_empty(writer: anytype, width: usize) !void {
+pub fn print_empty(writer: *std.Io.Writer, width: usize) !void {
     for (0..width) |_| {
         try writer.print(" ", .{});
     }
