@@ -7,24 +7,24 @@ const Error = error{
     UnknownAttribute,
 };
 
-const Self = @This();
+const Attributes = @This();
 
 gpa: std.mem.Allocator,
 title: ?Title = null,
 
-pub fn init(gpa: std.mem.Allocator) Self {
-    return Self{
+pub fn init(gpa: std.mem.Allocator) Attributes {
+    return Attributes{
         .gpa = gpa,
     };
 }
 
-pub fn deinit(self: *Self) void {
-    if (self.title) |*title| title.deinit();
+pub fn deinit(attr: *Attributes) void {
+    if (attr.title) |*title| title.deinit();
 }
 
-pub fn addAttribute(self: *Self, line: []const u8) !void {
+pub fn addAttribute(attr: *Attributes, line: []const u8) !void {
     if (std.mem.startsWith(u8, line, ".title: ")) {
-        self.title = try Title.init(self.gpa, line[8..]);
+        attr.title = try Title.init(attr.gpa, line[8..]);
     } else {
         return Error.UnknownAttribute;
     }

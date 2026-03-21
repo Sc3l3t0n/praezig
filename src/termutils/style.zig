@@ -11,8 +11,8 @@ pub const Style = enum {
     invisible,
     strikethrough,
 
-    pub fn enable(comptime self: Style) []const u8 {
-        return comptime switch (self) {
+    pub fn enable(comptime style: Style) []const u8 {
+        return comptime switch (style) {
             .bold => csi ++ "1m",
             .faint => csi ++ "2m",
             .italic => csi ++ "3m",
@@ -24,8 +24,8 @@ pub const Style = enum {
         };
     }
 
-    pub fn disable(comptime self: Style) []const u8 {
-        return comptime switch (self) {
+    pub fn disable(comptime style: Style) []const u8 {
+        return comptime switch (style) {
             .bold => csi ++ "22m",
             .faint => csi ++ "22m",
             .italic => csi ++ "23m",

@@ -37,24 +37,24 @@ pub fn init(
     };
 }
 
-pub fn deinit(self: *Program) void {
-    for (self.pages.items) |*p| {
+pub fn deinit(program: *Program) void {
+    for (program.pages.items) |*p| {
         p.deinit();
     }
-    self.pages.deinit(self.gpa);
-    if (self.attributes) |*a| a.deinit();
+    program.pages.deinit(program.gpa);
+    if (program.attributes) |*a| a.deinit();
 }
 
-pub fn setup(self: *Program) void {
-    if (self.attributes) |*attributes| {
-        for (self.pages.items) |*p| {
+pub fn setup(program: *Program) void {
+    if (program.attributes) |*attributes| {
+        for (program.pages.items) |*p| {
             p.attributes = attributes;
         }
     }
 }
 
-pub fn run(self: *Program) !void {
-    const stdout = self.stdout;
+pub fn run(program: *Program) !void {
+    const stdout = program.stdout;
 
     try stdout.print(termutils.alternate_screen, .{});
     try stdout.print(termutils.cursor_hide, .{});
@@ -68,12 +68,12 @@ pub fn run(self: *Program) !void {
     var index: usize = 0;
     var prevIndex: usize = 1;
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(self.termsize, stdout);
+    try Page.printEmpty(program.termsize, stdout);
     try stdout.flush();
 
     while (true) {
-        var curPage = &self.pages.items[index];
-        curPage.size = &self.termsize;
+        var curPage = &program.pages.items[index];
+        curPage.size = &program.termsize;
 
         if (index != prevIndex) {
             try curPage.print(stdout);
@@ -82,10 +82,10 @@ pub fn run(self: *Program) !void {
 
         prevIndex = index;
 
-        switch (try KeyInput.fromStdin(self.stdin)) {
+        switch (try KeyInput.fromStdin(program.stdin)) {
             .Quit => break,
-            .Next => index = std.math.clamp(index + 1, 0, self.pages.items.len - 1),
-            .Previous => index = std.math.clamp(index -| 1, 0, self.pages.items.len - 1),
+            .Next => index = std.math.clamp(index + 1, 0, program.pages.items.len - 1),
+            .Previous => index = std.math.clamp(index -| 1, 0, program.pages.items.len - 1),
             .None => {},
         }
 

@@ -9,7 +9,7 @@ const Error = error{
     SizeNotSet,
 };
 
-const Self = @This();
+const Page = @This();
 
 gpa: std.mem.Allocator,
 index: u32,
@@ -18,8 +18,8 @@ content_height: u32,
 attributes: ?*Attributes = null,
 size: ?*const termutils.size.TermSize,
 
-pub fn init(gpa: std.mem.Allocator, index: u32) !Self {
-    return Self{
+pub fn init(gpa: std.mem.Allocator, index: u32) !Page {
+    return Page{
         .gpa = gpa,
         .index = index,
         .content_height = 0,
@@ -27,16 +27,16 @@ pub fn init(gpa: std.mem.Allocator, index: u32) !Self {
     };
 }
 
-pub fn deinit(self: *Self) void {
-    for (self.rows.items) |*r| {
+pub fn deinit(page: *Page) void {
+    for (page.rows.items) |*r| {
         r.deinit();
     }
-    self.rows.deinit(self.gpa);
+    page.rows.deinit(page.gpa);
 }
 
-pub fn addRow(self: *Self, toAdd: Row) !void {
-    try self.rows.append(self.gpa, toAdd);
-    self.content_height += toAdd.get_height();
+pub fn addRow(page: *Page, toAdd: Row) !void {
+    try page.rows.append(page.gpa, toAdd);
+    page.content_height += toAdd.get_height();
 }
 
 pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
@@ -53,36 +53,36 @@ pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
     try writer.print(termutils.colors.reset, .{});
 }
 
-pub fn print(self: *Self, writer: anytype) !void {
-    if (self.size == null) {
+pub fn print(page: *Page, writer: anytype) !void {
+    if (page.size == null) {
         return Error.SizeNotSet;
     }
 
     try writer.print(termutils.clear_screen, .{});
     try writer.print(Color.black.background(), .{});
 
-    try Row.print_empty(writer, self.size.?.col);
+    try Row.print_empty(writer, page.size.?.col);
 
-    var rest = self.size.?.row - 2;
+    var rest = page.size.?.row - 2;
 
-    if (self.attributes) |*attributes| {
+    if (page.attributes) |*attributes| {
         if (attributes.*.title) |*title| {
-            try writer.print("{s}", .{try title.render(self.size.?.col)});
+            try writer.print("{s}", .{try title.render(page.size.?.col)});
             rest -= 2;
         }
     }
 
-    try Row.print_empty(writer, self.size.?.col);
+    try Row.print_empty(writer, page.size.?.col);
 
     rest -= 1;
 
-    for (self.rows.items) |*r| {
+    for (page.rows.items) |*r| {
         // TODO: Use padding
-        const pStr = try r.render(self.size.?.col - 2);
+        const pStr = try r.render(page.size.?.col - 2);
         try writer.print("  {s}", .{pStr});
     }
 
-    rest -= self.content_height - 1;
+    rest -= page.content_height - 1;
 
     for (0..rest) |_| {
         try writer.print("\n", .{});

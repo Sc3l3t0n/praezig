@@ -23,6 +23,8 @@ pub const Error = error{
     TooLong, // TODO: Temporary (handle properly)
 };
 
+const Row = @This();
+
 gpa: std.mem.Allocator,
 
 row_type: Type,
@@ -31,20 +33,19 @@ rendered_content: ?std.ArrayList(u8),
 content_height: u8,
 options: Options,
 
-const Self = @This();
 
 pub fn init(
     gpa: std.mem.Allocator,
     row_type: Type,
     content: []const u8,
     options: Options,
-) !Self {
+) !Row {
     var contentArray = try std.ArrayList(u8).initCapacity(gpa, content.len);
     contentArray.appendSliceAssumeCapacity(content);
 
     // TODO: Determin content height based on content.
 
-    return Self{
+    return Row{
         .gpa = gpa,
         .row_type = row_type,
         .content = contentArray,
@@ -54,17 +55,17 @@ pub fn init(
     };
 }
 
-pub fn deinit(self: *Self) void {
-    self.content.deinit(self.gpa);
-    if (self.rendered_content) |*rendered_content| {
-        rendered_content.deinit(self.gpa);
+pub fn deinit(row: *Row) void {
+    row.content.deinit(row.gpa);
+    if (row.rendered_content) |*rendered_content| {
+        rendered_content.deinit(row.gpa);
     }
 }
 
-pub fn get_height(self: Self) u8 {
-    return switch (self.row_type) {
-        .Heading, .SubHeading => self.content_height + 1,
-        else => self.content_height,
+pub fn get_height(row: Row) u8 {
+    return switch (row.row_type) {
+        .Heading, .SubHeading => row.content_height + 1,
+        else => row.content_height,
     };
 }
 
@@ -77,58 +78,58 @@ pub fn print_empty(writer: anytype, width: usize) !void {
 // Returns the rendered content as []u8
 // The rendered content is stored in the struct for future use.
 pub fn render(
-    self: *Self,
+    row: *Row,
     width: usize,
 ) ![]u8 {
-    if (self.rendered_content) |rendered_content| {
+    if (row.rendered_content) |rendered_content| {
         return rendered_content.items;
     }
 
-    if (self.content.items.len >= width) {
+    if (row.content.items.len >= width) {
         return Error.TooLong; // TODO: Temporary (handle properly)
     }
-    self.rendered_content = std.ArrayList(u8).empty;
-    const buffer = &self.rendered_content.?;
-    try buffer.appendNTimes(self.gpa, ' ', 4 * self.options.indent);
+    row.rendered_content = std.ArrayList(u8).empty;
+    const buffer = &row.rendered_content.?;
+    try buffer.appendNTimes(row.gpa, ' ', 4 * row.options.indent);
 
     const backgroundColor = comptime Color.black.background();
 
-    switch (self.row_type) {
+    switch (row.row_type) {
         .Heading => {
             const esc: []const u8 = comptime Color.dark_yellow.foreground(.bold) ++ backgroundColor;
 
-            try buffer.appendSlice(self.gpa, comptime Style.bold.enable() ++ Style.underline.enable());
-            try buffer.appendSlice(self.gpa, esc);
-            try buffer.appendSlice(self.gpa, self.content.items);
-            try buffer.appendSlice(self.gpa, comptime Style.bold.disable() ++ Style.underline.disable());
-            try buffer.append(self.gpa, '\n');
+            try buffer.appendSlice(row.gpa, comptime Style.bold.enable() ++ Style.underline.enable());
+            try buffer.appendSlice(row.gpa, esc);
+            try buffer.appendSlice(row.gpa, row.content.items);
+            try buffer.appendSlice(row.gpa, comptime Style.bold.disable() ++ Style.underline.disable());
+            try buffer.append(row.gpa, '\n');
         },
         .SubHeading => {
             const esc: []const u8 = comptime Color.blue.foreground(.bold) ++ backgroundColor;
 
-            try buffer.appendSlice(self.gpa, comptime Style.bold.enable() ++ Style.underline.enable());
-            try buffer.appendSlice(self.gpa, esc);
-            try buffer.appendSlice(self.gpa, self.content.items);
-            try buffer.appendSlice(self.gpa, comptime Style.bold.disable() ++ Style.underline.disable());
-            try buffer.append(self.gpa, '\n');
+            try buffer.appendSlice(row.gpa, comptime Style.bold.enable() ++ Style.underline.enable());
+            try buffer.appendSlice(row.gpa, esc);
+            try buffer.appendSlice(row.gpa, row.content.items);
+            try buffer.appendSlice(row.gpa, comptime Style.bold.disable() ++ Style.underline.disable());
+            try buffer.append(row.gpa, '\n');
         },
         .Text => {
             const esc: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
 
-            try buffer.appendSlice(self.gpa, esc);
-            try buffer.appendSlice(self.gpa, self.content.items);
+            try buffer.appendSlice(row.gpa, esc);
+            try buffer.appendSlice(row.gpa, row.content.items);
         },
         .BulletPoint => {
             const esc: []const u8 = comptime Color.green.foreground(.normal) ++ backgroundColor;
             const esc_back: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
 
-            try buffer.appendSlice(self.gpa, esc);
-            try buffer.appendSlice(self.gpa, if (@import("builtin").os.tag == .windows) "* " else "▶ ");
-            try buffer.appendSlice(self.gpa, esc_back);
-            try buffer.appendSlice(self.gpa, self.content.items);
+            try buffer.appendSlice(row.gpa, esc);
+            try buffer.appendSlice(row.gpa, if (@import("builtin").os.tag == .windows) "* " else "▶ ");
+            try buffer.appendSlice(row.gpa, esc_back);
+            try buffer.appendSlice(row.gpa, row.content.items);
         },
     }
 
-    try buffer.append(self.gpa, '\n');
+    try buffer.append(row.gpa, '\n');
     return buffer.items;
 }
