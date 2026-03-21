@@ -11,8 +11,9 @@ const PageError = error{
 };
 
 pub const Page = struct {
+    allocator: std.mem.Allocator,
     index: u32,
-    rows: std.ArrayList(Row),
+    rows: std.ArrayList(Row) = .empty,
     content_height: u32,
     attributes: ?*Attributes = null,
     size: ?*const termutils.size.TermSize,
@@ -20,24 +21,23 @@ pub const Page = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, index: u32) !Self {
-        const rows = std.ArrayList(Row).init(allocator);
         return Self{
+            .allocator = allocator,
             .index = index,
-            .rows = rows,
             .content_height = 0,
             .size = null,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.rows.items) |r| {
+        for (self.rows.items) |*r| {
             r.deinit();
         }
-        self.rows.deinit();
+        self.rows.deinit(self.allocator);
     }
 
     pub fn addRow(self: *Self, toAdd: Row) !void {
-        try self.rows.append(toAdd);
+        try self.rows.append(self.allocator, toAdd);
         self.content_height += toAdd.get_height();
     }
 

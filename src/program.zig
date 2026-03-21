@@ -5,57 +5,59 @@ const page = @import("page.zig");
 
 const Attributes = @import("attributes.zig").Attributes;
 const Parsed = parser.Parsed;
+const Allocator = std.mem.Allocator;
+const Writer = std.Io.Writer;
+const Reader = std.Io.Reader;
 
 pub const Program = struct {
-    writer: std.io.AnyWriter,
-    reader: std.io.AnyReader,
+    stdout: *Writer,
+    stdin: *Reader,
     allocator: std.mem.Allocator,
 
     pages: std.ArrayList(page.Page),
     attributes: ?Attributes,
     termsize: termutils.size.TermSize,
 
-    const Self = @This();
-
     pub fn init(
-        allocator: std.mem.Allocator,
-        writer: std.io.AnyWriter,
-        reader: std.io.AnyReader,
+        io: std.Io,
+        allocator: Allocator,
+        stdout: *Writer,
+        stdin: *Reader,
         path: []const u8,
-    ) !Self {
-        const parsed = try parser.Parser.fromFile(allocator, path);
-        const self = Self{
-            .writer = writer,
-            .reader = reader,
+    ) !Program {
+        const parsed = try parser.Parser.fromFile(io, allocator, path);
+        return .{
+            .stdout = stdout,
+            .stdin = stdin,
             .allocator = allocator,
             .pages = parsed.pages,
             .attributes = parsed.attributes,
-            .termsize = try termutils.size.getTerminalSize(),
+            .termsize = try termutils.size.getTerminalSize(io),
         };
-        return self;
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *Program) void {
         for (self.pages.items) |*p| {
             p.deinit();
         }
-        self.pages.deinit();
+        self.pages.deinit(self.allocator);
         if (self.attributes) |*a| a.deinit();
     }
 
-    pub fn setup(self: *Self) void {
-        for (self.pages.items) |*p| {
-            p.attributes = &self.attributes.?;
+    pub fn setup(self: *Program) void {
+        if (self.attributes) |*attributes| {
+            for (self.pages.items) |*p| {
+                p.attributes = attributes;
+            }
         }
     }
 
-    pub fn run(self: *Self) !void {
-        var bw = std.io.bufferedWriter(self.writer);
-        const stdout = bw.writer();
+    pub fn run(self: *Program) !void {
+        const stdout = self.stdout;
 
         try stdout.print(termutils.alternate_screen, .{});
         try stdout.print(termutils.cursor_hide, .{});
-        try bw.flush();
+        try stdout.flush();
 
         try termutils.kb_input.setRawMode(true);
         defer {
@@ -66,7 +68,7 @@ pub const Program = struct {
         var prevIndex: usize = 1;
         // NOTE: Fixes the first page missing some colors
         try page.Page.printEmpty(self.termsize, stdout);
-        try bw.flush();
+        try stdout.flush();
 
         while (true) {
             var curPage = &self.pages.items[index];
@@ -75,12 +77,12 @@ pub const Program = struct {
 
             if (index != prevIndex) {
                 try curPage.print(stdout);
-                try bw.flush();
+                try stdout.flush();
             }
 
             prevIndex = index;
 
-            _ = try self.reader.read(buffer[0..]);
+            _ = try self.stdin.readSliceShort(&buffer);
 
             switch (checkInput(&buffer)) {
                 .Quit => break,
@@ -93,7 +95,7 @@ pub const Program = struct {
         }
 
         try stdout.print(termutils.main_screen, .{});
-        try bw.flush();
+        try stdout.flush();
     }
 
     const KeyInput = enum {

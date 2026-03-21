@@ -25,7 +25,7 @@ pub fn main(init: std.process.Init) !void {
     const path = utils.extractPathArg(gpa, init.minimal.args) catch |err|
         switch (err) {
             error.MissingPathArgument => {
-                try stderr.writeAll("No path provided");
+                try stderr.writeAll("No path provided\n");
                 try stderr.flush();
                 std.process.exit(1);
             },
@@ -34,13 +34,14 @@ pub fn main(init: std.process.Init) !void {
     defer gpa.free(path);
 
     if (!utils.validatePath(io, path)) {
-        try stderr.print("Path is invalid: {s}", .{path});
+        try stderr.print("Path is invalid: {s}\n", .{path});
         try stderr.flush();
         std.process.exit(1);
     }
 
     var program = try Program.init(
-        init.gpa,
+        io,
+        gpa,
         stdout,
         stdin,
         path,

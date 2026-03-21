@@ -12,6 +12,8 @@ pub fn extractPathArg(
     var iter = try args.iterateAllocator(gpa);
     defer iter.deinit();
 
+    _ = iter.next();
+
     const rel_path = iter.next() orelse {
         return error.MissingPathArgument;
     };
@@ -21,7 +23,7 @@ pub fn extractPathArg(
 
 pub fn validatePath(io: std.Io, path: []const u8) bool {
     if (std.fs.path.isAbsolute(path)) {
-        Dir.openDirAbsolute(io, path, .{}) catch return false;
+        Dir.accessAbsolute(io, path, .{}) catch return false;
     } else {
         Dir.cwd().access(io, path, .{}) catch return false;
     }

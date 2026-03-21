@@ -16,8 +16,8 @@ pub const TermSize = struct {
 
 /// Get the size of the terminal.
 /// Is supported on Linux, macOS, and Windows.
-pub fn getTerminalSize() TermSizeError!TermSize {
-    const stdout = std.io.getStdOut();
+pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
+    const stdout = std.Io.File.stdout();
 
     return switch (builtin.target.os.tag) {
         .windows => windows: {
@@ -42,18 +42,18 @@ pub fn getTerminalSize() TermSizeError!TermSize {
                 break :other_os TermSizeError.Unsupported;
             }
 
-            var winsize: ioctl_interface.winsize = undefined;
+            var winsize: std.posix.winsize = undefined;
 
             switch (std.posix.errno(ioctl_interface.ioctl(stdout.handle, ioctl_interface.T.IOCGWINSZ, @intFromPtr(&winsize)))) {
                 .SUCCESS => break :other_os TermSize{
-                    .col = winsize.ws_col,
-                    .row = winsize.ws_row - 1, // assume prompt is 1 line high
+                    .col = winsize.col,
+                    .row = winsize.row - 1, // assume prompt is 1 line high
                 },
                 else => break :other_os TermSizeError.Unexpected,
             }
         },
     } catch |err| {
-        if (!std.posix.isatty(stdout.handle)) {
+        if (stdout.isTty(io) catch false) {
             return TermSizeError.NotATty;
         } else return err;
     };
