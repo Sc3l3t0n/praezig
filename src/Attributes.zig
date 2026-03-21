@@ -9,12 +9,12 @@ const Error = error{
 
 const Self = @This();
 
-allocator: std.mem.Allocator,
+gpa: std.mem.Allocator,
 title: ?Title = null,
 
-pub fn init(allocator: std.mem.Allocator) Self {
+pub fn init(gpa: std.mem.Allocator) Self {
     return Self{
-        .allocator = allocator,
+        .gpa = gpa,
     };
 }
 
@@ -24,7 +24,7 @@ pub fn deinit(self: *Self) void {
 
 pub fn addAttribute(self: *Self, line: []const u8) !void {
     if (std.mem.startsWith(u8, line, ".title: ")) {
-        self.title = try Title.init(self.allocator, line[8..]);
+        self.title = try Title.init(self.gpa, line[8..]);
     } else {
         return Error.UnknownAttribute;
     }

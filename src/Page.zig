@@ -11,16 +11,16 @@ const Error = error{
 
 const Self = @This();
 
-allocator: std.mem.Allocator,
+gpa: std.mem.Allocator,
 index: u32,
 rows: std.ArrayList(Row) = .empty,
 content_height: u32,
 attributes: ?*Attributes = null,
 size: ?*const termutils.size.TermSize,
 
-pub fn init(allocator: std.mem.Allocator, index: u32) !Self {
+pub fn init(gpa: std.mem.Allocator, index: u32) !Self {
     return Self{
-        .allocator = allocator,
+        .gpa = gpa,
         .index = index,
         .content_height = 0,
         .size = null,
@@ -31,11 +31,11 @@ pub fn deinit(self: *Self) void {
     for (self.rows.items) |*r| {
         r.deinit();
     }
-    self.rows.deinit(self.allocator);
+    self.rows.deinit(self.gpa);
 }
 
 pub fn addRow(self: *Self, toAdd: Row) !void {
-    try self.rows.append(self.allocator, toAdd);
+    try self.rows.append(self.gpa, toAdd);
     self.content_height += toAdd.get_height();
 }
 

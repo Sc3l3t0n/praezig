@@ -4,24 +4,24 @@ const HorizontalAlignment = @import("../style.zig").HorizontalAlignment;
 value: std.ArrayList(u8) = .empty,
 rendered: ?std.ArrayList(u8) = null,
 alignment: HorizontalAlignment,
-allocator: std.mem.Allocator,
+gpa: std.mem.Allocator,
 
 const Self = @This();
 
-pub fn init(allocator: std.mem.Allocator, value: []const u8) !Self {
-    var contentArray = try std.ArrayList(u8).initCapacity(allocator, value.len);
+pub fn init(gpa: std.mem.Allocator, value: []const u8) !Self {
+    var contentArray = try std.ArrayList(u8).initCapacity(gpa, value.len);
     contentArray.appendSliceAssumeCapacity(value);
     return Self{
         .value = contentArray,
         .alignment = HorizontalAlignment.center, // TODO: make this configurable
-        .allocator = allocator,
+        .gpa = gpa,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    self.value.deinit(self.allocator);
+    self.value.deinit(self.gpa);
     if (self.rendered) |*rendered| {
-        rendered.deinit(self.allocator);
+        rendered.deinit(self.gpa);
     }
 }
 
@@ -39,10 +39,10 @@ pub fn render(
         .left => 0,
         .right => width - self.value.items.len,
     };
-    try rendered.appendNTimes(self.allocator, ' ', padding);
-    try rendered.appendSlice(self.allocator, self.value.items);
-    try rendered.append(self.allocator, '\n');
-    try rendered.appendNTimes(self.allocator, '=', width);
+    try rendered.appendNTimes(self.gpa, ' ', padding);
+    try rendered.appendSlice(self.gpa, self.value.items);
+    try rendered.append(self.gpa, '\n');
+    try rendered.appendNTimes(self.gpa, '=', width);
     self.rendered = rendered;
 
     return rendered.items;

@@ -13,7 +13,7 @@ pub const Program = @This();
 
 stdout: *Writer,
 stdin: *Reader,
-allocator: std.mem.Allocator,
+gpa: std.mem.Allocator,
 
 pages: std.ArrayList(Page),
 attributes: ?Attributes,
@@ -21,16 +21,16 @@ termsize: termutils.size.TermSize,
 
 pub fn init(
     io: std.Io,
-    allocator: Allocator,
+    gpa: Allocator,
     stdout: *Writer,
     stdin: *Reader,
     path: []const u8,
 ) !Program {
-    const parsed = try parser.fromFile(io, allocator, path);
+    const parsed = try parser.fromFile(io, gpa, path);
     return .{
         .stdout = stdout,
         .stdin = stdin,
-        .allocator = allocator,
+        .gpa = gpa,
         .pages = parsed.pages,
         .attributes = parsed.attributes,
         .termsize = try termutils.size.getTerminalSize(io),
@@ -41,7 +41,7 @@ pub fn deinit(self: *Program) void {
     for (self.pages.items) |*p| {
         p.deinit();
     }
-    self.pages.deinit(self.allocator);
+    self.pages.deinit(self.gpa);
     if (self.attributes) |*a| a.deinit();
 }
 
