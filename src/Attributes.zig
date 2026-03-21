@@ -9,22 +9,18 @@ const Error = error{
 
 const Attributes = @This();
 
-gpa: std.mem.Allocator,
 title: ?Title = null,
 
-pub fn init(gpa: std.mem.Allocator) Attributes {
-    return Attributes{
-        .gpa = gpa,
-    };
+pub const empty: Attributes = .{};
+
+pub fn deinit(attr: *Attributes, gpa: std.mem.Allocator) void {
+    if (attr.title) |*title| title.deinit(gpa);
+    attr.* = undefined;
 }
 
-pub fn deinit(attr: *Attributes) void {
-    if (attr.title) |*title| title.deinit();
-}
-
-pub fn addAttribute(attr: *Attributes, line: []const u8) !void {
+pub fn addAttribute(attr: *Attributes, gpa: std.mem.Allocator, line: []const u8) !void {
     if (std.mem.startsWith(u8, line, ".title: ")) {
-        attr.title = try Title.init(attr.gpa, line[8..]);
+        attr.title = Title.init(try gpa.dupe(u8, line[8..]));
     } else {
         return Error.UnknownAttribute;
     }
@@ -32,17 +28,17 @@ pub fn addAttribute(attr: *Attributes, line: []const u8) !void {
 
 test "title is parsed" {
     const t = std.testing;
-    var attributes = init(t.allocator);
-    try attributes.addAttribute(".title: Hello, World!");
-    defer attributes.deinit();
-    try t.expectEqualStrings("Hello, World!", attributes.title.?.value.items);
+    var attributes = empty;
+    try attributes.addAttribute(t.allocator, ".title: Hello, World!");
+    defer attributes.deinit(t.allocator);
+    try t.expectEqualStrings("Hello, World!", attributes.title.?.value);
 }
 
 test "unknown attribute" {
     const t = std.testing;
-    var attributes = init(t.allocator);
+    var attributes = empty;
     try t.expectError(
         Error.UnknownAttribute,
-        attributes.addAttribute(".unknown: value"),
+        attributes.addAttribute(t.allocator, ".unknown: value"),
     );
 }

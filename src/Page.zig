@@ -11,31 +11,30 @@ const Error = error{
 
 const Page = @This();
 
-gpa: std.mem.Allocator,
 index: u32,
 rows: std.ArrayList(Row) = .empty,
 content_height: u32,
 attributes: ?*Attributes = null,
 size: ?*const termutils.size.TermSize,
 
-pub fn init(gpa: std.mem.Allocator, index: u32) !Page {
+pub fn init(index: u32) Page {
     return Page{
-        .gpa = gpa,
         .index = index,
         .content_height = 0,
         .size = null,
     };
 }
 
-pub fn deinit(page: *Page) void {
+pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
     for (page.rows.items) |*r| {
-        r.deinit();
+        r.deinit(gpa);
     }
-    page.rows.deinit(page.gpa);
+    page.rows.deinit(gpa);
+    page.* = undefined;
 }
 
-pub fn addRow(page: *Page, toAdd: Row) !void {
-    try page.rows.append(page.gpa, toAdd);
+pub fn addRow(page: *Page, gpa: std.mem.Allocator, toAdd: Row) !void {
+    try page.rows.append(gpa, toAdd);
     page.content_height += toAdd.get_height();
 }
 
@@ -53,7 +52,7 @@ pub fn printEmpty(size: termutils.size.TermSize, writer: anytype) !void {
     try writer.print(termutils.colors.reset, .{});
 }
 
-pub fn print(page: *Page, writer: anytype) !void {
+pub fn print(page: *Page, gpa: std.mem.Allocator, writer: anytype) !void {
     if (page.size == null) {
         return Error.SizeNotSet;
     }
@@ -67,7 +66,7 @@ pub fn print(page: *Page, writer: anytype) !void {
 
     if (page.attributes) |*attributes| {
         if (attributes.*.title) |*title| {
-            try writer.print("{s}", .{try title.render(page.size.?.col)});
+            try writer.print("{s}", .{try title.render(gpa, page.size.?.col)});
             rest -= 2;
         }
     }
@@ -78,7 +77,7 @@ pub fn print(page: *Page, writer: anytype) !void {
 
     for (page.rows.items) |*r| {
         // TODO: Use padding
-        const pStr = try r.render(page.size.?.col - 2);
+        const pStr = try r.render(gpa, page.size.?.col - 2);
         try writer.print("  {s}", .{pStr});
     }
 

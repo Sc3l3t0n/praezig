@@ -39,10 +39,10 @@ pub fn init(
 
 pub fn deinit(program: *Program) void {
     for (program.pages.items) |*p| {
-        p.deinit();
+        p.deinit(program.gpa);
     }
     program.pages.deinit(program.gpa);
-    if (program.attributes) |*a| a.deinit();
+    if (program.attributes) |*a| a.deinit(program.gpa);
 }
 
 pub fn setup(program: *Program) void {
@@ -76,7 +76,7 @@ pub fn run(program: *Program) !void {
         curPage.size = &program.termsize;
 
         if (index != prevIndex) {
-            try curPage.print(stdout);
+            try curPage.print(program.gpa, stdout);
             try stdout.flush();
         }
 
