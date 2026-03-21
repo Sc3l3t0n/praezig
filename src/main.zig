@@ -3,7 +3,7 @@ const parser = @import("parser.zig");
 const termutils = @import("termutils.zig");
 const utils = @import("utils.zig");
 
-const Program = @import("program.zig").Program;
+const Program = @import("Program.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;

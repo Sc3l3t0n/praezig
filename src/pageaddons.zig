@@ -1,1 +1,1 @@
-pub const Title = @import("pageaddons/title.zig");
+pub const Title = @import("pageaddons/Title.zig");

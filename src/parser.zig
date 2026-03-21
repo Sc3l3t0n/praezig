@@ -1,120 +1,118 @@
 const std = @import("std");
-const row = @import("row.zig");
-const page = @import("page.zig");
 const mem = std.mem;
 const fs = std.fs;
 
 const Io = std.Io;
-const Attributes = @import("attributes.zig").Attributes;
+const Attributes = @import("Attributes.zig");
+const Page = @import("Page.zig");
+const Row = @import("Row.zig");
 
 pub const Parsed = struct {
-    pages: std.ArrayList(page.Page),
+    pages: std.ArrayList(Page),
     attributes: ?Attributes,
 };
 
-pub const Parser = struct {
-    // TODO: Use reader for this parsing
-    pub fn parse(
-        allocator: mem.Allocator,
-        content: []const u8,
-    ) !Parsed {
-        const win_encoded = mem.containsAtLeast(u8, content, 1, "\r\n");
-        var iterator = if (win_encoded)
-            mem.splitSequence(u8, content, "\r\n")
-        else
-            mem.splitSequence(u8, content, "\n");
+// TODO: Use reader for this parsing
+pub fn parse(
+    allocator: mem.Allocator,
+    content: []const u8,
+) !Parsed {
+    const win_encoded = mem.containsAtLeast(u8, content, 1, "\r\n");
+    var iterator = if (win_encoded)
+        mem.splitSequence(u8, content, "\r\n")
+    else
+        mem.splitSequence(u8, content, "\n");
 
-        var pages = std.ArrayList(page.Page).empty;
-        var index: u32 = 0;
+    var pages = std.ArrayList(Page).empty;
+    var index: u32 = 0;
 
-        const attributes = try parseAttributes(allocator, &iterator);
+    const attributes = try parseAttributes(allocator, &iterator);
 
-        try pages.append(allocator, try page.Page.init(allocator, index));
+    try pages.append(allocator, try Page.init(allocator, index));
 
+    while (iterator.next()) |token| {
+        if (token.len == 0) continue;
+        if (mem.startsWith(u8, token, "# ")) {
+            const slice = token[2..];
+            const r = try Row.init(
+                allocator,
+                .Heading,
+                slice,
+                .{},
+            );
+            try pages.items[index].addRow(r);
+        } else if (mem.startsWith(u8, token, "## ")) {
+            const slice = token[3..];
+            const r = try Row.init(
+                allocator,
+                .SubHeading,
+                slice,
+                .{},
+            );
+            try pages.items[index].addRow(r);
+        } else if (mem.startsWith(u8, token, "- ")) {
+            const slice = token[2..];
+            const r = try Row.init(
+                allocator,
+                .BulletPoint,
+                slice,
+                .{},
+            );
+            try pages.items[index].addRow(r);
+        } else if (mem.startsWith(u8, token, "---")) {
+            index += 1;
+            try pages.append(allocator, try Page.init(allocator, index));
+        } else {
+            const r = try Row.init(
+                allocator,
+                .Text,
+                token,
+                .{},
+            );
+            try pages.items[index].addRow(r);
+        }
+    }
+    return .{ .pages = pages, .attributes = attributes };
+}
+
+pub fn fromFile(
+    io: Io,
+    allocator: mem.Allocator,
+    path: []const u8,
+) !Parsed {
+    const file = if (fs.path.isAbsolute(path))
+        try Io.Dir.openFileAbsolute(io, path, .{})
+    else
+        try Io.Dir.cwd().openFile(io, path, .{});
+
+    defer file.close(io);
+
+    var file_buf: [1024]u8 = undefined;
+    var file_reader = file.reader(io, &file_buf);
+    const file_content = try file_reader.interface.allocRemaining(
+        allocator,
+        .limited(1024 * 1024 * 1024),
+    );
+    defer allocator.free(file_content);
+
+    return try parse(allocator, file_content);
+}
+
+fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
+    var attributes = Attributes.init(allocator);
+    if (iterator.peek()) |iToken| {
+        if (!mem.startsWith(u8, iToken, "---")) return null;
+        _ = iterator.next();
         while (iterator.next()) |token| {
-            if (token.len == 0) continue;
-            if (mem.startsWith(u8, token, "# ")) {
-                const slice = token[2..];
-                const r = try row.Row.init(
-                    allocator,
-                    .Heading,
-                    slice,
-                    .{},
-                );
-                try pages.items[index].addRow(r);
-            } else if (mem.startsWith(u8, token, "## ")) {
-                const slice = token[3..];
-                const r = try row.Row.init(
-                    allocator,
-                    .SubHeading,
-                    slice,
-                    .{},
-                );
-                try pages.items[index].addRow(r);
-            } else if (mem.startsWith(u8, token, "- ")) {
-                const slice = token[2..];
-                const r = try row.Row.init(
-                    allocator,
-                    .BulletPoint,
-                    slice,
-                    .{},
-                );
-                try pages.items[index].addRow(r);
-            } else if (mem.startsWith(u8, token, "---")) {
-                index += 1;
-                try pages.append(allocator, try page.Page.init(allocator, index));
+            if (mem.startsWith(u8, token, "---")) {
+                return attributes;
             } else {
-                const r = try row.Row.init(
-                    allocator,
-                    .Text,
-                    token,
-                    .{},
-                );
-                try pages.items[index].addRow(r);
+                try attributes.addAttribute(token);
             }
         }
-        return .{ .pages = pages, .attributes = attributes };
     }
-
-    pub fn fromFile(
-        io: Io,
-        allocator: mem.Allocator,
-        path: []const u8,
-    ) !Parsed {
-        const file = if (fs.path.isAbsolute(path))
-            try Io.Dir.openFileAbsolute(io, path, .{})
-        else
-            try Io.Dir.cwd().openFile(io, path, .{});
-
-        defer file.close(io);
-
-        var file_buf: [1024]u8 = undefined;
-        var file_reader = file.reader(io, &file_buf);
-        const file_content = try file_reader.interface.allocRemaining(
-            allocator,
-            .limited(1024 * 1024 * 1024),
-        );
-        defer allocator.free(file_content);
-
-        return try parse(allocator, file_content);
-    }
-
-    fn parseAttributes(allocator: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
-        var attributes = Attributes.init(allocator);
-        if (iterator.peek()) |iToken| {
-            if (!mem.startsWith(u8, iToken, "---")) return null;
-            _ = iterator.next();
-            while (iterator.next()) |token| {
-                if (mem.startsWith(u8, token, "---")) {
-                    return attributes;
-                } else {
-                    try attributes.addAttribute(token);
-                }
-            }
-        }
-        return null;
-    }
-};
+    return null;
+}
 
 const testing = std.testing;
 
@@ -124,7 +122,7 @@ test "Parser Headings" {
         \\# Heading 1
         \\# Heading 2
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -142,7 +140,7 @@ test "Parser SubHeadings" {
         \\## SubHeading 1
         \\## SubHeading 2
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -162,7 +160,7 @@ test "Parser BulletPoints" {
         \\- BulletPoint 1
         \\- BulletPoint 2
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -181,7 +179,7 @@ test "Parser Text" {
         \\Text 1
         \\Text 2
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -201,7 +199,7 @@ test "Parser Page" {
         \\---
         \\---
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -221,7 +219,7 @@ test "Parse Mixed" {
         \\- BulletPoint 2
         \\Text 2
     ;
-    const pages = (try Parser.parse(allocator, content)).pages;
+    const pages = (try parse(allocator, content)).pages;
 
     try testing.expectEqual(2, pages.items.len);
     for (pages.items) |p| {
@@ -243,7 +241,7 @@ test "Skip Empty Line before Heading" {
         \\
         \\# Heading 2
     ;
-    const pages = (try Parser.parse(
+    const pages = (try parse(
         allocator,
         content,
     )).pages;
@@ -260,7 +258,7 @@ test "Attributes are parsed" {
         \\---
         \\# Heading 1
     ;
-    const parsed = try Parser.parse(allocator, content);
+    const parsed = try parse(allocator, content);
     try testing.expectEqualStrings(
         "Test",
         parsed.attributes.?.title.?.value.items,
