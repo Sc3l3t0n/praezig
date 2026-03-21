@@ -53,7 +53,7 @@ pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
             }
         },
     } catch |err| {
-        if (stdout.isTty(io) catch false) {
+        if (!(stdout.isTty(io) catch false)) {
             return TermSizeError.NotATty;
         } else return err;
     };
