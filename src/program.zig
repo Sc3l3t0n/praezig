@@ -72,7 +72,6 @@ pub const Program = struct {
 
         while (true) {
             var curPage = &self.pages.items[index];
-            var buffer: [4]u8 = undefined;
             curPage.size = &self.termsize;
 
             if (index != prevIndex) {
@@ -82,9 +81,7 @@ pub const Program = struct {
 
             prevIndex = index;
 
-            _ = try self.stdin.readSliceShort(&buffer);
-
-            switch (checkInput(&buffer)) {
+            switch (try parseInput(self.stdin)) {
                 .Quit => break,
                 .Next => index = std.math.clamp(index + 1, 0, self.pages.items.len - 1),
                 .Previous => index = std.math.clamp(index -| 1, 0, self.pages.items.len - 1),
@@ -105,18 +102,26 @@ pub const Program = struct {
         None,
     };
 
-    fn checkInput(buffer: []u8) KeyInput {
-        return switch (buffer[0]) {
-            'q' => KeyInput.Quit,
-            ' ', 'l' => KeyInput.Next,
-            'h' => KeyInput.Previous,
-            else => if (buffer.len >= 3) {
-                return switch (buffer[2]) {
+    fn parseInput(stdin: *Reader) !KeyInput {
+        switch (try stdin.peekByte()) {
+            'q', ' ', 'l', 'h' => |c| {
+                stdin.toss(1);
+                return switch (c) {
+                    'q' => KeyInput.Quit,
+                    ' ', 'l' => KeyInput.Next,
+                    'h' => KeyInput.Previous,
+                    else => unreachable,
+                };
+            },
+            '\x1b' => {
+                var esc = try stdin.take(3);
+                return switch (esc[2]) {
                     'D' => KeyInput.Previous,
                     'C' => KeyInput.Next,
                     else => KeyInput.None,
                 };
-            } else KeyInput.None,
-        };
+            },
+            else => return KeyInput.None,
+        }
     }
 };
