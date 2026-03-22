@@ -96,8 +96,6 @@ Navigate through the slides using the following controls:
 
 ## Installation
 
-### Manual Installation
-
 1. Clone the repository:
 
    ```bash
@@ -105,12 +103,20 @@ Navigate through the slides using the following controls:
    cd ./praezig
    ```
 
-2. Build the project:
+### Debug Build
 
-   ```bash
-   zig build run -- path-to-markdown-file # Build and run
-   # or
-   zig build # Build release and take the binary from zig-out/bin
-   ```
+Run directly with `zig build run`:
 
-3. If you built the project, move the binary to a directory in your PATH.
+```bash
+zig build run -- path-to-markdown-file
+```
+
+### Release Build
+
+Build the optimized binary:
+
+```bash
+zig build -Doptimize=ReleaseFast
+```
+
+The binary will be at `zig-out/bin/praezig`. Move it to a directory in your PATH to use it globally.
