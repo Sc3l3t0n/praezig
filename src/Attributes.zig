@@ -1,10 +1,11 @@
 const std = @import("std");
+const zon = std.zon;
 
 const Title = @import("pageaddons.zig").Title;
 const Page = @import("Page.zig");
 
-const Error = error{
-    UnknownAttribute,
+const ZonStruct = struct {
+    title: ?[]const u8,
 };
 
 const Attributes = @This();
@@ -13,32 +14,54 @@ title: ?Title = null,
 
 pub const empty: Attributes = .{};
 
+pub fn parse(gpa: std.mem.Allocator, slice: []const u8, diag: ?*zon.parse.Diagnostics) !Attributes {
+    var list = try std.ArrayList(u8).initCapacity(gpa, slice.len + 3);
+
+    if (!std.mem.startsWith(u8, slice, ".{")) list.appendSliceAssumeCapacity(".{");
+    list.appendSliceAssumeCapacity(slice);
+    if (!std.mem.endsWith(u8, slice, "}")) list.appendAssumeCapacity('}');
+
+    const object = try list.toOwnedSliceSentinel(gpa, 0);
+    defer gpa.free(object);
+
+    const zon_struct = try zon.parse.fromSliceAlloc(ZonStruct, gpa, object, diag, .{});
+
+    return .{
+        .title = if (zon_struct.title) |t| .init(t) else null,
+    };
+}
+
 pub fn deinit(attr: *Attributes, gpa: std.mem.Allocator) void {
     if (attr.title) |*title| title.deinit(gpa);
     attr.* = undefined;
 }
 
-pub fn addAttribute(attr: *Attributes, gpa: std.mem.Allocator, line: []const u8) !void {
-    if (std.mem.startsWith(u8, line, ".title: ")) {
-        attr.title = Title.init(try gpa.dupe(u8, line[8..]));
-    } else {
-        return Error.UnknownAttribute;
-    }
+test "parse works without object identifiert (.{})" {
+    const t = std.testing;
+    const gpa = t.allocator;
+
+    const input =
+        \\.title = "Hello"
+    ;
+
+    var attributes = try parse(gpa, input, null);
+    defer attributes.deinit(gpa);
+
+    try t.expectEqualStrings(attributes.title.?.value, "Hello");
 }
 
-test "title is parsed" {
+test "parse works with object identifiert (.{})" {
     const t = std.testing;
-    var attributes = empty;
-    try attributes.addAttribute(t.allocator, ".title: Hello, World!");
-    defer attributes.deinit(t.allocator);
-    try t.expectEqualStrings("Hello, World!", attributes.title.?.value);
-}
+    const gpa = t.allocator;
 
-test "unknown attribute" {
-    const t = std.testing;
-    var attributes = empty;
-    try t.expectError(
-        Error.UnknownAttribute,
-        attributes.addAttribute(t.allocator, ".unknown: value"),
-    );
+    const input =
+        \\.{
+        \\.title = "Hello"
+        \\}
+    ;
+
+    var attributes = try parse(gpa, input, null);
+    defer attributes.deinit(gpa);
+
+    try t.expectEqualStrings(attributes.title.?.value, "Hello");
 }

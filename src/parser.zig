@@ -104,19 +104,22 @@ pub fn fromFile(
 }
 
 fn parseAttributes(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
-    var attributes: Attributes = .empty;
-    if (iterator.peek()) |iToken| {
-        if (!mem.startsWith(u8, iToken, "---")) return null;
+    const peek = iterator.peek();
+    if (peek == null or !mem.startsWith(u8, peek.?, "---")) return null;
+
+    _ = iterator.next();
+    const start_i = iterator.index.?;
+    const value = iterator.rest();
+
+    while (iterator.peek()) |token| {
+        if (mem.startsWith(u8, token, "---")) break;
         _ = iterator.next();
-        while (iterator.next()) |token| {
-            if (mem.startsWith(u8, token, "---")) {
-                return attributes;
-            } else {
-                try attributes.addAttribute(gpa, token);
-            }
-        }
     }
-    return null;
+
+    const len = iterator.index.? - start_i - iterator.delimiter.len;
+    _ = iterator.next();
+
+    return try Attributes.parse(gpa, value[0..len], null);
 }
 
 const testing = std.testing;
@@ -266,7 +269,7 @@ test "Attributes are parsed" {
     const gpa = testing.allocator;
     const content =
         \\---
-        \\.title: Test
+        \\.title = "Test"
         \\---
         \\# Heading 1
     ;

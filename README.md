@@ -50,6 +50,32 @@ Text
 # Slide 2
 ```
 
+### Frontmatter
+
+Add frontmatter at the top of your markdown file using [ZON](https://ziglang.org/documentation/master/std/#std.zon) syntax:
+
+```markdown
+---
+.{
+    .title = "My Presentation"
+}
+---
+
+# Slide 1
+```
+
+Or without the object braces:
+
+```markdown
+---
+.title = "My Presentation"
+---
+
+# Slide 1
+```
+
+Attributes are optional and allow you to configure presentation behavior.
+
 ### Run Presentation
 
 To start the presentation, run the following command:
