@@ -1,37 +1,35 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const windows = std.os.windows;
 
 /// Error codes for the keyboard module.
-pub const KBError = error{
+pub const Error = error{
     NotSupported,
     Unexpected,
 };
 
 /// Set the terminal to rawmode/cookmode.
 /// Currently only works on Linux!
-pub fn setRawMode(enable: bool) !void {
-    switch (builtin.os.tag) {
+pub fn setRawMode(io: std.Io, enable: bool) !void {
+    switch (builtin.target.os.tag) {
         .linux => try setRawModeLinux(enable),
-        .windows => try setRawModeWindows(enable),
-        else => return KBError.NotSupported,
+        .windows => try setRawModeWindows(io, enable),
+        else => return Error.NotSupported,
     }
 }
 
-extern "kernel32" fn GetConsoleMode(hConsoleHandle: *anyopaque, lpMode: usize) c_int;
-extern "kernel32" fn SetConsoleMode(hConsoleHandle: *anyopaque, lpMode: usize) c_int;
-extern "kernel32" fn GetStdHandle(nStdHandle: *anyopaque) *anyopaque;
-
-fn setRawModeWindows(enable: bool) !void {
+fn setRawModeWindows(io: std.Io, enable: bool) !void {
     const ENABLE_ECHO_INPUT: u16 = 0x0004;
     const ENABLE_LINE_INPUT: u16 = 0x0002;
+    const stdin = std.Io.File.stdin();
 
-    var mode: u32 = 0;
-
-    const fd = std.Io.File.stdin().handle;
-    const err = GetConsoleMode(GetStdHandle(fd), @intFromPtr(&mode));
-    if (err != 0) {
-        return KBError.Unexpected;
+    var get_console_mode = windows.CONSOLE.USER_IO.GET_MODE;
+    switch (get_console_mode.operate(io, stdin) catch return Error.Unexpected) {
+        .SUCCESS => {},
+        else => return Error.Unexpected,
     }
+
+    var mode = get_console_mode.Data;
 
     if (enable) {
         mode &= ~ENABLE_ECHO_INPUT;
@@ -41,37 +39,19 @@ fn setRawModeWindows(enable: bool) !void {
         mode |= ENABLE_LINE_INPUT;
     }
 
-    const err_set = SetConsoleMode(fd, @intFromPtr(&mode));
-    if (err_set != 0) {
-        return KBError.Unexpected;
+    var set_console_mode = windows.CONSOLE.USER_IO.SET_MODE(mode);
+    switch (set_console_mode.operate(io, stdin) catch return Error.Unexpected) {
+        .SUCCESS => {},
+        else => return Error.Unexpected,
     }
 }
 
 fn setRawModeLinux(enable: bool) !void {
-    const termios = std.posix.termios;
-    const TCGETS = std.posix.T.CGETS;
-    const TCSETS = std.posix.T.CSETS;
-
-    var current: termios = undefined;
-
     const fd = std.Io.File.stdin().handle;
-    const errGet = std.os.linux.ioctl(fd, TCGETS, @intFromPtr(&current));
-    switch (std.posix.errno(errGet)) {
-        .SUCCESS => {},
-        else => return KBError.Unexpected,
-    }
+    var current = std.posix.tcgetattr(fd) catch return Error.Unexpected;
 
-    if (enable) {
-        current.lflag.ECHO = false;
-        current.lflag.ICANON = false;
-    } else {
-        current.lflag.ECHO = true;
-        current.lflag.ICANON = true;
-    }
+    current.lflag.ECHO = !enable;
+    current.lflag.ICANON = !enable;
 
-    const errSet = std.os.linux.ioctl(fd, TCSETS, @intFromPtr(&current));
-    switch (std.posix.errno(errSet)) {
-        .SUCCESS => {},
-        else => return KBError.Unexpected,
-    }
+    std.posix.tcsetattr(fd, .NOW, current) catch return Error.Unexpected;
 }

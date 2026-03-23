@@ -37,16 +37,16 @@ pub fn deinit(program: *Program) void {
     program.presentation.deinit(program.gpa);
 }
 
-pub fn run(program: *Program) !void {
+pub fn run(program: *Program, io: std.Io) !void {
     const stdout = program.stdout;
 
     try stdout.print(termutils.alternate_screen, .{});
     try stdout.print(termutils.cursor_hide, .{});
     try stdout.flush();
 
-    try termutils.kb_input.setRawMode(true);
+    try termutils.kb_input.setRawMode(io, true);
     defer {
-        termutils.kb_input.setRawMode(false) catch {};
+        termutils.kb_input.setRawMode(io, false) catch {};
     }
 
     var index: usize = 0;

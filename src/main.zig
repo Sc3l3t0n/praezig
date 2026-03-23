@@ -47,7 +47,7 @@ pub fn main(init: std.process.Init) !void {
     );
     defer program.deinit();
 
-    try program.run();
+    try program.run(io);
 }
 
 test {
