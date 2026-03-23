@@ -29,6 +29,8 @@
 
 ## How to use praezig?
 
+See `EXAMPLE.md` for a complete sample deck you can run directly.
+
 ### Create a Markdown File
 
 - **praezig** uses a single markdown file to create a presentation.
@@ -83,7 +85,13 @@ To start the presentation, run the following command:
 ```bash
 praezig relative-path-to-markdown-file
 
-praezig ./example.md
+praezig ./EXAMPLE.md
+```
+
+Or run the included example from source:
+
+```bash
+zig build run -- ./EXAMPLE.md
 ```
 
 ### Keyboard Controls
