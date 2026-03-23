@@ -1,5 +1,4 @@
 const std = @import("std");
-const parser = @import("parser.zig");
 const termutils = @import("termutils.zig");
 const utils = @import("utils.zig");
 
@@ -48,7 +47,6 @@ pub fn main(init: std.process.Init) !void {
     );
     defer program.deinit();
 
-    program.setup();
     try program.run();
 }
 

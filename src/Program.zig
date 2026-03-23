@@ -1,10 +1,9 @@
 const std = @import("std");
-const parser = @import("parser.zig");
 const termutils = @import("termutils.zig");
 
+const Presentation = @import("Presentation.zig");
 const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
-const Parsed = parser.Parsed;
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 const Reader = std.Io.Reader;
@@ -15,8 +14,7 @@ stdout: *Writer,
 stdin: *Reader,
 gpa: std.mem.Allocator,
 
-pages: std.ArrayList(Page),
-attributes: ?Attributes,
+presentation: Presentation,
 termsize: termutils.size.TermSize,
 
 pub fn init(
@@ -26,31 +24,17 @@ pub fn init(
     stdin: *Reader,
     path: []const u8,
 ) !Program {
-    const parsed = try parser.fromFile(io, gpa, path);
     return .{
         .stdout = stdout,
         .stdin = stdin,
         .gpa = gpa,
-        .pages = parsed.pages,
-        .attributes = parsed.attributes,
+        .presentation = try Presentation.fromFile(io, gpa, path),
         .termsize = try termutils.size.getTerminalSize(io),
     };
 }
 
 pub fn deinit(program: *Program) void {
-    for (program.pages.items) |*p| {
-        p.deinit(program.gpa);
-    }
-    program.pages.deinit(program.gpa);
-    if (program.attributes) |*a| a.deinit(program.gpa);
-}
-
-pub fn setup(program: *Program) void {
-    if (program.attributes) |*attributes| {
-        for (program.pages.items) |*p| {
-            p.attributes = attributes;
-        }
-    }
+    program.presentation.deinit(program.gpa);
 }
 
 pub fn run(program: *Program) !void {
@@ -68,15 +52,17 @@ pub fn run(program: *Program) !void {
     var index: usize = 0;
     var prevIndex: usize = 1;
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(program.termsize, stdout);
+    try Page.printEmpty(stdout, program.termsize);
     try stdout.flush();
 
     while (true) {
-        var curPage = &program.pages.items[index];
-        curPage.size = &program.termsize;
-
         if (index != prevIndex) {
-            try curPage.print(program.gpa, stdout);
+            try program.presentation.printPage(
+                program.gpa,
+                stdout,
+                &program.termsize,
+                index,
+            );
             try stdout.flush();
         }
 
@@ -84,8 +70,8 @@ pub fn run(program: *Program) !void {
 
         switch (try KeyInput.fromStdin(program.stdin)) {
             .Quit => break,
-            .Next => index = std.math.clamp(index + 1, 0, program.pages.items.len - 1),
-            .Previous => index = std.math.clamp(index -| 1, 0, program.pages.items.len - 1),
+            .Next => index = std.math.clamp(index + 1, 0, program.presentation.pageAmount() - 1),
+            .Previous => index = std.math.clamp(index -| 1, 0, program.presentation.pageAmount() - 1),
             .None => {},
         }
 

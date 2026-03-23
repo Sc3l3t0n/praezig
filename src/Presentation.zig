@@ -6,38 +6,38 @@ const Io = std.Io;
 const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
 const Row = @import("Row.zig");
+const TermSize = @import("termutils.zig").size.TermSize;
 
-pub const Parsed = struct {
-    pages: std.ArrayList(Page),
-    attributes: ?Attributes,
+const Presentation = @This();
 
-    pub fn deinit(parsed: *Parsed, gpa: mem.Allocator) void {
-        if (parsed.attributes) |*a| a.deinit(gpa);
-        for (parsed.pages.items) |*page| {
-            page.deinit(gpa);
-        }
-        parsed.pages.deinit(gpa);
-        parsed.* = undefined;
+pages: []Page,
+attributes: ?Attributes,
+
+pub fn deinit(presentation: *Presentation, gpa: mem.Allocator) void {
+    if (presentation.attributes) |*a| a.deinit(gpa);
+    for (presentation.pages) |*page| {
+        page.deinit(gpa);
     }
-};
+    gpa.free(presentation.pages);
+    presentation.* = undefined;
+}
 
 // TODO: Use reader for this parsing
 pub fn parse(
     gpa: mem.Allocator,
     content: []const u8,
-) !Parsed {
+) !Presentation {
     const win_encoded = mem.containsAtLeast(u8, content, 1, "\r\n");
     var iterator = if (win_encoded)
         mem.splitSequence(u8, content, "\r\n")
     else
         mem.splitSequence(u8, content, "\n");
 
-    var pages = std.ArrayList(Page).empty;
-    var index: u32 = 0;
-
     const attributes = try parseAttributes(gpa, &iterator);
 
-    try pages.append(gpa, Page.init(index));
+    var pages = std.ArrayList(Page).empty;
+    var rows = std.ArrayList(Row).empty;
+    defer rows.deinit(gpa);
 
     while (iterator.next()) |token| {
         if (token.len == 0) continue;
@@ -48,7 +48,7 @@ pub fn parse(
                 try gpa.dupe(u8, slice),
                 .{},
             );
-            try pages.items[index].addRow(gpa, r);
+            try rows.append(gpa, r);
         } else if (mem.startsWith(u8, token, "## ")) {
             const slice = token[3..];
             const r = Row.init(
@@ -56,7 +56,7 @@ pub fn parse(
                 try gpa.dupe(u8, slice),
                 .{},
             );
-            try pages.items[index].addRow(gpa, r);
+            try rows.append(gpa, r);
         } else if (mem.startsWith(u8, token, "- ")) {
             const slice = token[2..];
             const r = Row.init(
@@ -64,27 +64,31 @@ pub fn parse(
                 try gpa.dupe(u8, slice),
                 .{},
             );
-            try pages.items[index].addRow(gpa, r);
+            try rows.append(gpa, r);
         } else if (mem.startsWith(u8, token, "---")) {
-            index += 1;
-            try pages.append(gpa, Page.init(index));
+            const p = Page.init(try rows.toOwnedSlice(gpa));
+            try pages.append(gpa, p);
         } else {
             const r = Row.init(
                 .Text,
                 try gpa.dupe(u8, token),
                 .{},
             );
-            try pages.items[index].addRow(gpa, r);
+            try rows.append(gpa, r);
         }
     }
-    return .{ .pages = pages, .attributes = attributes };
+
+    const p = Page.init(try rows.toOwnedSlice(gpa));
+    try pages.append(gpa, p);
+
+    return .{ .pages = try pages.toOwnedSlice(gpa), .attributes = attributes };
 }
 
 pub fn fromFile(
     io: Io,
     gpa: mem.Allocator,
     path: []const u8,
-) !Parsed {
+) !Presentation {
     const file = if (fs.path.isAbsolute(path))
         try Io.Dir.openFileAbsolute(io, path, .{})
     else
@@ -122,6 +126,27 @@ fn parseAttributes(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequenc
     return try Attributes.parse(gpa, value[0..len], null);
 }
 
+pub fn printPage(
+    presentation: *Presentation,
+    gpa: std.mem.Allocator,
+    writer: *std.Io.Writer,
+    size: *const TermSize,
+    index: usize,
+) !void {
+    if (index >= presentation.pages.len) return error.IndexOutOfRange;
+
+    try presentation.pages[index].print(
+        gpa,
+        writer,
+        size,
+        if (presentation.attributes) |*attr| attr else null,
+    );
+}
+
+pub fn pageAmount(presentation: Presentation) usize {
+    return presentation.pages.len;
+}
+
 const testing = std.testing;
 
 test "Parser Headings" {
@@ -136,7 +161,7 @@ test "Parser Headings" {
     );
     defer parsed.deinit(gpa);
 
-    const rows = parsed.pages.items[0].rows.items;
+    const rows = parsed.pages[0].rows;
     try testing.expectEqual(2, rows.len);
 
     try testing.expectEqualStrings("Heading 1", rows[0].content);
@@ -155,7 +180,7 @@ test "Parser SubHeadings" {
     );
     defer parsed.deinit(gpa);
 
-    const rows = parsed.pages.items[0].rows.items;
+    const rows = parsed.pages[0].rows;
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("SubHeading 1", rows[0].content);
@@ -175,7 +200,7 @@ test "Parser BulletPoints" {
         content,
     );
     defer parsed.deinit(gpa);
-    const rows = parsed.pages.items[0].rows.items;
+    const rows = parsed.pages[0].rows;
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("BulletPoint 1", rows[0].content);
@@ -195,7 +220,7 @@ test "Parser Text" {
         content,
     );
     defer parsed.deinit(gpa);
-    const rows = parsed.pages.items[0].rows.items;
+    const rows = parsed.pages[0].rows;
 
     try testing.expectEqual(2, rows.len);
     try testing.expectEqualStrings("Text 1", rows[0].content);
@@ -216,7 +241,7 @@ test "Parser Page" {
         content,
     );
     defer parsed.deinit(gpa);
-    try testing.expectEqual(3, parsed.pages.items.len);
+    try testing.expectEqual(3, parsed.pages.len);
 }
 
 test "Parse Mixed" {
@@ -235,9 +260,9 @@ test "Parse Mixed" {
     var parsed = try parse(gpa, content);
     defer parsed.deinit(gpa);
 
-    try testing.expectEqual(2, parsed.pages.items.len);
-    for (parsed.pages.items) |p| {
-        const rows = p.rows.items;
+    try testing.expectEqual(2, parsed.pages.len);
+    for (parsed.pages) |p| {
+        const rows = p.rows;
 
         try testing.expectEqual(4, rows.len);
         try testing.expectEqual(.Heading, rows[0].row_type);
@@ -260,7 +285,7 @@ test "Skip Empty Line before Heading" {
         content,
     );
     defer parsed.deinit(gpa);
-    const rows = parsed.pages.items[1].rows.items;
+    const rows = parsed.pages[1].rows;
     try testing.expectEqual(1, rows.len);
     try testing.expectEqualStrings("Heading 2", rows[0].content);
 }
@@ -282,6 +307,6 @@ test "Attributes are parsed" {
     );
     try testing.expectEqualStrings(
         "Heading 1",
-        parsed.pages.items[0].rows.items[0].content,
+        parsed.pages[0].rows[0].content,
     );
 }
