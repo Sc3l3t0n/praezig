@@ -21,15 +21,17 @@ pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
 
     return switch (builtin.target.os.tag) {
         .windows => windows: {
-            var winsize: std.os.windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
+            var get_console_info = std.os.windows.CONSOLE.USER_IO.GET_SCREEN_BUFFER_INFO;
 
-            if (std.os.windows.kernel32.GetConsoleScreenBufferInfo(stdout.handle, &winsize) != std.os.windows.TRUE) {
-                break :windows TermSizeError.Unexpected;
+            const result = get_console_info.operate(io, stdout) catch break :windows TermSizeError.Unexpected;
+            switch (result) {
+                .SUCCESS => {},
+                else => break :windows TermSizeError.Unexpected,
             }
 
             break :windows TermSize{ // These are stored in a signed type (windows.SHORT) but will never be negative
-                .col = @intCast(winsize.srWindow.Right - winsize.srWindow.Left + 1),
-                .row = @intCast(winsize.srWindow.Bottom - winsize.srWindow.Top), // no +1, assume prompt is 1 line high
+                .col = @intCast(get_console_info.Data.dwWindowSize.X),
+                .row = @intCast(get_console_info.Data.dwWindowSize.Y - 1), // assume prompt is 1 line high
             };
         },
         else => |os_tag| other_os: {
