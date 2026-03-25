@@ -6,6 +6,7 @@ const Io = std.Io;
 const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
 const Row = @import("Row.zig");
+const RenderCommand = @import("RenderCommand.zig");
 const TermSize = @import("termutils.zig").size.TermSize;
 
 const Presentation = @This();
@@ -128,17 +129,13 @@ fn parseAttributes(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequenc
 
 pub fn printPage(
     presentation: *Presentation,
-    gpa: std.mem.Allocator,
-    writer: *std.Io.Writer,
-    size: *const TermSize,
+    cmd: RenderCommand,
     index: usize,
 ) !void {
     if (index >= presentation.pages.len) return error.IndexOutOfRange;
 
     try presentation.pages[index].print(
-        gpa,
-        writer,
-        size,
+        cmd,
         if (presentation.attributes) |*attr| attr else null,
     );
 }

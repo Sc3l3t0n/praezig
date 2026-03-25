@@ -7,6 +7,7 @@ const size = termutils.size;
 const Presentation = @import("Presentation.zig");
 const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
+const RenderCommand = @import("RenderCommand.zig");
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 const Reader = std.Io.Reader;
@@ -49,41 +50,48 @@ pub fn run(program: *Program, io: std.Io) !void {
     defer termutils.kb_input.setRawMode(io, false) catch {};
 
     const init_size_event = try events.get(io);
-    var term_size = init_size_event.window_resize;
+
+    var cmd: RenderCommand = .init(
+        program.gpa,
+        stdout,
+        init_size_event.window_resize,
+    );
 
     var index: usize = 0;
     var prevIndex: usize = 1;
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(stdout, term_size);
+    try Page.printEmpty(stdout, cmd.size);
     try stdout.flush();
 
-    while (true) {
-        if (index != prevIndex) {
-            try program.presentation.printPage(
-                program.gpa,
-                stdout,
-                &term_size,
-                index,
-            );
-            try stdout.flush();
-        }
-        prevIndex = index;
+    try program.printPage(cmd, index);
 
+    while (true) {
         switch (try events.get(io)) {
             .key_pressed => |key| {
                 switch (key) {
                     .Quit => break,
                     .Next => index = std.math.clamp(index + 1, 0, program.presentation.pageAmount() - 1),
                     .Previous => index = std.math.clamp(index -| 1, 0, program.presentation.pageAmount() - 1),
-                    .None => {},
+                    .None => continue,
                 }
                 try stdout.print(termutils.backspace, .{});
             },
-            .window_resize => |ts| term_size = ts,
+            .window_resize => |ts| cmd.size = ts,
             .error_occured => break, // TODO: Handle recoverable
         }
+
+        try program.printPage(cmd, index);
+        prevIndex = index;
     }
 
     try stdout.print(termutils.main_screen, .{});
     try stdout.flush();
+}
+
+pub fn printPage(program: *Program, cmd: RenderCommand, index: usize) !void {
+    try program.presentation.printPage(
+        cmd,
+        index,
+    );
+    try cmd.writer.flush();
 }
