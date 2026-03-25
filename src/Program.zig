@@ -45,12 +45,8 @@ pub fn run(program: *Program, io: std.Io) !void {
     try events.start(io);
     defer events.stop(io);
 
-    try stdout.print(termutils.alternate_screen, .{});
-    try stdout.print(termutils.cursor_hide, .{});
-    try stdout.flush();
-
-    try termutils.kb_input.setRawMode(io, true);
-    defer termutils.kb_input.setRawMode(io, false) catch {};
+    try program.enterPresentationMode(io);
+    defer program.leavePresentationMode(io);
 
     var cmd: RenderCommand = .init(
         program.gpa,
@@ -87,9 +83,6 @@ pub fn run(program: *Program, io: std.Io) !void {
 
         try program.printPage(cmd, index);
     }
-
-    try stdout.print(termutils.main_screen, .{});
-    try stdout.flush();
 }
 
 pub fn printPage(program: *Program, cmd: RenderCommand, index: usize) !void {
@@ -98,4 +91,18 @@ pub fn printPage(program: *Program, cmd: RenderCommand, index: usize) !void {
         index,
     );
     try cmd.writer.flush();
+}
+
+fn enterPresentationMode(program: *Program, io: std.Io) !void {
+    try program.stdout.print(termutils.alternate_screen, .{});
+    try program.stdout.print(termutils.cursor_hide, .{});
+    try program.stdout.flush();
+    try termutils.kb_input.setRawMode(io, true);
+}
+
+fn leavePresentationMode(program: *Program, io: std.Io) void {
+    termutils.kb_input.setRawMode(io, false) catch {};
+    program.stdout.print(termutils.main_screen, .{}) catch {};
+    program.stdout.print(termutils.cursor_show, .{}) catch {};
+    program.stdout.flush() catch {};
 }
