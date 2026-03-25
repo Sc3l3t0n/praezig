@@ -28,11 +28,8 @@ const EventWithIo = struct {
         event.inner.set(event.io);
     }
 
-    pub fn wait(event: *EventWithIo) !void {
+    pub fn waitAndReset(event: *EventWithIo) !void {
         try event.inner.wait(event.io);
-    }
-
-    pub fn reset(event: *EventWithIo) void {
         event.inner.reset();
     }
 };
@@ -47,10 +44,6 @@ pub fn watch(io: std.Io) error{Canceled}!void {
     };
 }
 
-pub fn triggerResize() void {
-    if (resize_event) |*rp| rp.set();
-}
-
 fn innerWatch(io: std.Io) !void {
     const init_size = try retrieveTerminalSize(io);
     try events.put(io, .{ .window_resize = init_size });
@@ -61,12 +54,9 @@ fn innerWatch(io: std.Io) !void {
     try installSigwinchHandler();
 
     while (true) {
-        try io.checkCancel();
-        std.debug.print("Lol\n", .{});
-        try resize_event.?.wait();
-        defer resize_event.?.reset();
-        const size = try retrieveTerminalSize(io);
+        try resize_event.?.waitAndReset();
 
+        const size = try retrieveTerminalSize(io);
         try events.put(io, .{ .window_resize = size });
     }
 }
@@ -81,7 +71,7 @@ fn installSigwinchHandler() !void {
 }
 
 fn handleSigwinch(_: std.posix.SIG) callconv(.c) void {
-    triggerResize();
+    if (resize_event) |*re| re.set();
 }
 
 /// Credit to https://github.com/Siphonay
