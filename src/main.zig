@@ -16,10 +16,6 @@ pub fn main(init: std.process.Init) !void {
     var stderr_writer = std.Io.File.stderr().writerStreaming(io, &stderr_buf);
     const stderr = &stderr_writer.interface;
 
-    var stdin_buf: [1024]u8 = undefined;
-    var stdin_reader = std.Io.File.stdin().readerStreaming(io, &stdin_buf);
-    const stdin = &stdin_reader.interface;
-
     // Parse command line arguments
     const path = utils.extractPathArg(gpa, init.minimal.args) catch |err|
         switch (err) {
@@ -42,7 +38,6 @@ pub fn main(init: std.process.Init) !void {
         io,
         gpa,
         stdout,
-        stdin,
         path,
     );
     defer program.deinit();
