@@ -58,7 +58,6 @@ pub fn run(program: *Program, io: std.Io) !void {
     );
 
     var index: usize = 0;
-    var prevIndex: usize = 1;
     // NOTE: Fixes the first page missing some colors
     try Page.printEmpty(stdout, cmd.size);
     try stdout.flush();
@@ -81,7 +80,6 @@ pub fn run(program: *Program, io: std.Io) !void {
         }
 
         try program.printPage(cmd, index);
-        prevIndex = index;
     }
 
     try stdout.print(termutils.main_screen, .{});
