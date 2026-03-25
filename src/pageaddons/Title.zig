@@ -28,7 +28,10 @@ pub fn render(
     width: usize,
 ) ![]const u8 {
     if (title.rendered) |rendered| {
-        return rendered;
+        if (rendered.len == width) return rendered;
+
+        gpa.free(rendered);
+        title.rendered = null;
     }
 
     var rendered = std.ArrayList(u8).empty;

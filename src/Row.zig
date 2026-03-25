@@ -74,7 +74,10 @@ pub fn render(
     width: usize,
 ) ![]const u8 {
     if (row.rendered_content) |rendered_content| {
-        return rendered_content;
+        if (rendered_content.len == width) return rendered_content;
+
+        gpa.free(rendered_content);
+        row.rendered_content = null;
     }
 
     if (row.content.len >= width) {
