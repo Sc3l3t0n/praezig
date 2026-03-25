@@ -25,7 +25,6 @@ pub fn stop(io: std.Io) void {
     queue.close(io);
     procuders.cancel(io);
     size.triggerResize();
-    input.cancle(io);
 }
 
 pub fn put(io: std.Io, event: Event) !void {
