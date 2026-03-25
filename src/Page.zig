@@ -4,6 +4,7 @@ const termutils = @import("termutils.zig");
 const Color = termutils.colors.Color;
 const Attributes = @import("Attributes.zig");
 const Row = @import("Row.zig");
+const RenderCommand = @import("RenderCommand.zig");
 
 const Page = @This();
 
@@ -44,11 +45,13 @@ pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
 
 pub fn print(
     page: *Page,
-    gpa: std.mem.Allocator,
-    writer: *std.Io.Writer,
-    size: *const termutils.size.TermSize,
+    cmd: RenderCommand,
     attributes: ?*Attributes,
 ) !void {
+    const writer = cmd.writer;
+    const size = cmd.size;
+    const gpa = cmd.gpa;
+
     try writer.print(termutils.clear_screen, .{});
     try writer.print(Color.black.background(), .{});
 

@@ -1,35 +1,37 @@
 const std = @import("std");
+const events = @import("events.zig");
+const input = @import("input.zig");
 const termutils = @import("termutils.zig");
+const size = termutils.size;
 
 const Presentation = @import("Presentation.zig");
 const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
+const RenderCommand = @import("RenderCommand.zig");
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 const Reader = std.Io.Reader;
 
 pub const Program = @This();
 
-stdout: *Writer,
-stdin: *Reader,
 gpa: std.mem.Allocator,
+stdout: *Writer,
+stderr: *Writer,
 
 presentation: Presentation,
-termsize: termutils.size.TermSize,
 
 pub fn init(
     io: std.Io,
     gpa: Allocator,
     stdout: *Writer,
-    stdin: *Reader,
+    stderr: *Writer,
     path: []const u8,
 ) !Program {
     return .{
-        .stdout = stdout,
-        .stdin = stdin,
         .gpa = gpa,
+        .stdout = stdout,
+        .stderr = stderr,
         .presentation = try Presentation.fromFile(io, gpa, path),
-        .termsize = try termutils.size.getTerminalSize(io),
     };
 }
 
@@ -40,136 +42,67 @@ pub fn deinit(program: *Program) void {
 pub fn run(program: *Program, io: std.Io) !void {
     const stdout = program.stdout;
 
-    try stdout.print(termutils.alternate_screen, .{});
-    try stdout.print(termutils.cursor_hide, .{});
-    try stdout.flush();
+    try events.start(io);
+    defer events.stop(io);
 
-    try termutils.kb_input.setRawMode(io, true);
-    defer {
-        termutils.kb_input.setRawMode(io, false) catch {};
-    }
+    try program.enterPresentationMode(io);
+    defer program.leavePresentationMode(io);
+
+    var cmd: RenderCommand = .init(
+        program.gpa,
+        stdout,
+        try size.getTerminalSize(io),
+    );
 
     var index: usize = 0;
-    var prevIndex: usize = 1;
+
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(stdout, program.termsize);
+    try Page.printEmpty(stdout, cmd.size);
     try stdout.flush();
+
+    try program.printPage(cmd, index);
 
     while (true) {
-        if (index != prevIndex) {
-            try program.presentation.printPage(
-                program.gpa,
-                stdout,
-                &program.termsize,
-                index,
-            );
-            try stdout.flush();
+        switch (try events.get(io)) {
+            .key_pressed => |key| {
+                switch (key) {
+                    .Quit => break,
+                    .Next => index = std.math.clamp(index + 1, 0, program.presentation.pageAmount() - 1),
+                    .Previous => index = std.math.clamp(index -| 1, 0, program.presentation.pageAmount() - 1),
+                    .None => continue,
+                }
+                try stdout.print(termutils.backspace, .{});
+            },
+            .window_resize => |ts| cmd.size = ts,
+            .error_occured => |err| {
+                try program.stderr.print("Error occured: {t}\n", .{err});
+                try program.stderr.flush();
+                break;
+            },
         }
 
-        prevIndex = index;
-
-        switch (try KeyInput.fromStdin(program.stdin)) {
-            .Quit => break,
-            .Next => index = std.math.clamp(index + 1, 0, program.presentation.pageAmount() - 1),
-            .Previous => index = std.math.clamp(index -| 1, 0, program.presentation.pageAmount() - 1),
-            .None => {},
-        }
-
-        try stdout.print(termutils.backspace, .{});
+        try program.printPage(cmd, index);
     }
-
-    try stdout.print(termutils.main_screen, .{});
-    try stdout.flush();
 }
 
-const KeyInput = enum {
-    Quit,
-    Next,
-    Previous,
-    None,
+pub fn printPage(program: *Program, cmd: RenderCommand, index: usize) !void {
+    try program.presentation.printPage(
+        cmd,
+        index,
+    );
+    try cmd.writer.flush();
+}
 
-    fn fromStdin(stdin: *Reader) !KeyInput {
-        switch (try stdin.peekByte()) {
-            'q', ' ', 'l', 'h' => |c| {
-                stdin.toss(1);
-                return .fromSlice(&.{c});
-            },
-            '\x1b' => {
-                const esc = try stdin.take(3);
-                return .fromSlice(esc);
-            },
-            else => {
-                stdin.toss(1);
-                return .None;
-            },
-        }
-    }
+fn enterPresentationMode(program: *Program, io: std.Io) !void {
+    try program.stdout.print(termutils.alternate_screen, .{});
+    try program.stdout.print(termutils.cursor_hide, .{});
+    try program.stdout.flush();
+    try termutils.kb_input.setRawMode(io, true);
+}
 
-    fn fromSlice(slice: []const u8) KeyInput {
-        if (slice.len == 0) return .None;
-
-        return switch (slice[0]) {
-            'q' => .Quit,
-            ' ', 'l' => .Next,
-            'h' => .Previous,
-            '\x1b' => if (slice.len >= 3) switch (slice[2]) {
-                'D' => .Previous,
-                'C' => .Next,
-                else => .None,
-            } else .None,
-            else => .None,
-        };
-    }
-
-    test "fromSlice handles known keys" {
-        const cases = .{
-            .{ "q", .Quit },
-            .{ " ", .Next },
-            .{ "l", .Next },
-            .{ "h", .Previous },
-            .{ &.{ '\x1b', '[', 'C' }, .Next },
-            .{ &.{ '\x1b', '[', 'D' }, .Previous },
-        };
-        inline for (cases) |case| {
-            try std.testing.expectEqual(case[1], fromSlice(case[0]));
-        }
-    }
-
-    test "fromSlice ignores unsupported input" {
-        const cases = .{
-            "",
-            "x",
-            &.{ '\x1b', '[' },
-            &.{ '\x1b', '[', 'A' },
-        };
-        inline for (cases) |case| {
-            try std.testing.expectEqual(.None, fromSlice(case));
-        }
-    }
-
-    test "fromStdin handles known keys" {
-        const cases = .{
-            .{ "qx", .Quit, 'x' },
-            .{ " l", .Next, 'l' },
-            .{ "hy", .Previous, 'y' },
-            .{ &.{ '\x1b', '[', 'C', 'z' }, .Next, 'z' },
-        };
-        inline for (cases) |case| {
-            var reader: std.Io.Reader = .fixed(case[0]);
-            try std.testing.expectEqual(case[1], try fromStdin(&reader));
-            try std.testing.expectEqual(case[2], try reader.peekByte());
-        }
-    }
-
-    test "fromStdin consumes unsupported input" {
-        const cases = .{
-            .{ "xq", 'q' },
-            .{ &.{ '\x1b', '[', 'A', 'q' }, 'q' },
-        };
-        inline for (cases) |case| {
-            var reader: std.Io.Reader = .fixed(case[0]);
-            try std.testing.expectEqual(.None, try fromStdin(&reader));
-            try std.testing.expectEqual(case[1], try reader.peekByte());
-        }
-    }
-};
+fn leavePresentationMode(program: *Program, io: std.Io) void {
+    termutils.kb_input.setRawMode(io, false) catch {};
+    program.stdout.print(termutils.main_screen, .{}) catch {};
+    program.stdout.print(termutils.cursor_show, .{}) catch {};
+    program.stdout.flush() catch {};
+}
