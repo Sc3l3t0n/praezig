@@ -36,8 +36,8 @@ const EventWithIo = struct {
 
 var resize_event: ?EventWithIo = null;
 
-/// When used in an async context triggerResize needs to be called when cancled
 pub fn watch(io: std.Io) error{Canceled}!void {
+    if (builtin.os.tag == .windows) return;
     innerWatch(io) catch |err| {
         if (err == error.Canceled) return error.Canceled;
         events.put(io, .{ .error_occured = err }) catch {};
@@ -45,18 +45,13 @@ pub fn watch(io: std.Io) error{Canceled}!void {
 }
 
 fn innerWatch(io: std.Io) !void {
-    const init_size = try retrieveTerminalSize(io);
-    try events.put(io, .{ .window_resize = init_size });
-
-    if (builtin.os.tag == .windows) return;
-
     resize_event = .init(io);
     try installSigwinchHandler();
 
     while (true) {
         try resize_event.?.waitAndReset();
 
-        const size = try retrieveTerminalSize(io);
+        const size = try getTerminalSize(io);
         try events.put(io, .{ .window_resize = size });
     }
 }
@@ -74,10 +69,10 @@ fn handleSigwinch(_: std.posix.SIG) callconv(.c) void {
     if (resize_event) |*re| re.set();
 }
 
-/// Credit to https://github.com/Siphonay
 /// Get the size of the terminal.
 /// Is supported on Linux, macOS, and Windows.
-fn retrieveTerminalSize(io: std.Io) Error!TermSize {
+/// Credit to https://github.com/Siphonay
+pub fn getTerminalSize(io: std.Io) Error!TermSize {
     const stdout = std.Io.File.stdout();
 
     return switch (builtin.target.os.tag) {

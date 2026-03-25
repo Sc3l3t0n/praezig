@@ -49,15 +49,14 @@ pub fn run(program: *Program, io: std.Io) !void {
     try termutils.kb_input.setRawMode(io, true);
     defer termutils.kb_input.setRawMode(io, false) catch {};
 
-    const init_size_event = try events.get(io);
-
     var cmd: RenderCommand = .init(
         program.gpa,
         stdout,
-        init_size_event.window_resize,
+        try size.getTerminalSize(io),
     );
 
     var index: usize = 0;
+
     // NOTE: Fixes the first page missing some colors
     try Page.printEmpty(stdout, cmd.size);
     try stdout.flush();
