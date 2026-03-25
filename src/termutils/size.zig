@@ -1,32 +1,103 @@
-// Credit to https://github.com/Siphonay
+//! The terminal size in columns and rows.
+//! This is handled as a singleton, and is updated on resize.
+//! After getTermSize() is called,
 const std = @import("std");
 const builtin = @import("builtin");
+const events = @import("../events.zig");
 
-pub const TermSizeError = error{
+pub const Error = error{
     Unexpected,
     Unsupported,
     NotATty,
 };
 
-/// The terminal size in columns and rows.
 pub const TermSize = struct {
     col: usize,
     row: usize,
 };
 
+const EventWithIo = struct {
+    io: std.Io,
+    inner: std.Io.Event = .unset,
+
+    pub fn init(io: std.Io) EventWithIo {
+        return .{ .io = io };
+    }
+
+    pub fn set(event: *EventWithIo) void {
+        event.inner.set(event.io);
+    }
+
+    pub fn wait(event: *EventWithIo) !void {
+        try event.inner.wait(event.io);
+    }
+
+    pub fn reset(event: *EventWithIo) void {
+        event.inner.reset();
+    }
+};
+
+var resize_event: ?EventWithIo = null;
+
+/// When used in an async context triggerResize needs to be called when cancled
+pub fn watch(io: std.Io) error{Canceled}!void {
+    innerWatch(io) catch |err| {
+        if (err == error.Canceled) return error.Canceled;
+        events.put(io, .{ .error_occured = err }) catch {};
+    };
+}
+
+pub fn triggerResize() void {
+    if (resize_event) |*rp| rp.set();
+}
+
+fn innerWatch(io: std.Io) !void {
+    const init_size = try retrieveTerminalSize(io);
+    try events.put(io, .{ .window_resize = init_size });
+
+    if (builtin.os.tag == .windows) return;
+
+    resize_event = .init(io);
+    try installSigwinchHandler();
+
+    while (true) {
+        try io.checkCancel();
+        std.debug.print("Lol\n", .{});
+        try resize_event.?.wait();
+        defer resize_event.?.reset();
+        const size = try retrieveTerminalSize(io);
+
+        try events.put(io, .{ .window_resize = size });
+    }
+}
+
+fn installSigwinchHandler() !void {
+    const act = std.posix.Sigaction{
+        .handler = .{ .handler = &handleSigwinch },
+        .mask = std.posix.sigemptyset(),
+        .flags = 0,
+    };
+    std.posix.sigaction(std.posix.SIG.WINCH, &act, null);
+}
+
+fn handleSigwinch(_: std.posix.SIG) callconv(.c) void {
+    triggerResize();
+}
+
+/// Credit to https://github.com/Siphonay
 /// Get the size of the terminal.
 /// Is supported on Linux, macOS, and Windows.
-pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
+fn retrieveTerminalSize(io: std.Io) Error!TermSize {
     const stdout = std.Io.File.stdout();
 
     return switch (builtin.target.os.tag) {
         .windows => windows: {
             var get_console_info = std.os.windows.CONSOLE.USER_IO.GET_SCREEN_BUFFER_INFO;
 
-            const result = get_console_info.operate(io, stdout) catch break :windows TermSizeError.Unexpected;
+            const result = get_console_info.operate(io, stdout) catch break :windows Error.Unexpected;
             switch (result) {
                 .SUCCESS => {},
-                else => break :windows TermSizeError.Unexpected,
+                else => break :windows Error.Unexpected,
             }
 
             break :windows TermSize{ // These are stored in a signed type (windows.SHORT) but will never be negative
@@ -41,7 +112,7 @@ pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
             };
 
             if (!@hasDecl(ioctl_interface, "T")) {
-                break :other_os TermSizeError.Unsupported;
+                break :other_os Error.Unsupported;
             }
 
             var winsize: std.posix.winsize = undefined;
@@ -51,12 +122,12 @@ pub fn getTerminalSize(io: std.Io) TermSizeError!TermSize {
                     .col = winsize.col,
                     .row = winsize.row - 1, // assume prompt is 1 line high
                 },
-                else => break :other_os TermSizeError.Unexpected,
+                else => break :other_os Error.Unexpected,
             }
         },
     } catch |err| {
         if (!(stdout.isTty(io) catch false)) {
-            return TermSizeError.NotATty;
+            return Error.NotATty;
         } else return err;
     };
 }
