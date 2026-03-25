@@ -30,17 +30,12 @@ pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
 }
 
 pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
-    try writer.print(termutils.clear_screen, .{});
-    try writer.print(Color.black.background(), .{});
+    try writer.writeAll(termutils.clear_screen);
+    try writer.writeAll(Color.black.background());
 
-    for (0..size.col) |_| {
-        try writer.print(" ", .{});
-    }
-    const rest = size.row - 1;
-    for (0..rest) |_| {
-        try writer.print("\n", .{});
-    }
-    try writer.print(termutils.colors.reset, .{});
+    try writer.splatByteAll(' ', size.col);
+    try writer.splatByteAll('\n', size.row - 1);
+    try writer.writeAll(termutils.colors.reset);
 }
 
 pub fn print(
@@ -50,18 +45,17 @@ pub fn print(
 ) !void {
     const writer = cmd.writer;
     const size = cmd.size;
-    const gpa = cmd.gpa;
 
-    try writer.print(termutils.clear_screen, .{});
-    try writer.print(Color.black.background(), .{});
+    try writer.writeAll(termutils.clear_screen);
+    try writer.writeAll(Color.black.background());
 
     try Row.print_empty(writer, size.col);
 
     var rest = size.row - 2;
 
-    if (attributes) |*attr| {
-        if (attr.*.title) |*title| {
-            try writer.print("{s}", .{try title.render(gpa, size.col)});
+    if (attributes) |attr| {
+        if (attr.title) |title| {
+            try title.print(writer, size.col);
             rest -= 2;
         }
     }
@@ -70,16 +64,13 @@ pub fn print(
 
     rest -= 1;
 
-    for (page.rows) |*r| {
+    for (page.rows) |r| {
         // TODO: Use padding
-        const pStr = try r.render(gpa, size.col - 2);
-        try writer.print("  {s}", .{pStr});
+        try r.print(cmd.writer, size.col - 2);
     }
 
     rest -= page.content_height - 1;
 
-    for (0..rest) |_| {
-        try writer.print("\n", .{});
-    }
-    try writer.print(termutils.colors.reset, .{});
+    try writer.splatByteAll('\n', rest);
+    try writer.writeAll(termutils.colors.reset);
 }

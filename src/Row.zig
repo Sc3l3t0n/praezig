@@ -16,7 +16,7 @@ pub const Type = enum {
 pub const Options = struct {
     verticalAlignment: style.VerticalAlignment = .center,
     horizontalAlignment: style.HorizontalAlignment = .left,
-    indent: u8 = 0,
+    indent: u8 = 1,
 };
 
 pub const Error = error{
@@ -27,7 +27,6 @@ const Row = @This();
 
 row_type: Type,
 content: []const u8,
-rendered_content: ?[]const u8 = null,
 content_height: u8,
 options: Options,
 
@@ -47,9 +46,6 @@ pub fn init(
 
 pub fn deinit(row: *Row, gpa: std.mem.Allocator) void {
     gpa.free(row.content);
-    if (row.rendered_content) |rendered_content| {
-        gpa.free(rendered_content);
-    }
     row.* = undefined;
 }
 
@@ -61,31 +57,20 @@ pub fn get_height(row: Row) u8 {
 }
 
 pub fn print_empty(writer: *std.Io.Writer, width: usize) !void {
-    for (0..width) |_| {
-        try writer.print(" ", .{});
-    }
+    try writer.splatByteAll(' ', width);
 }
 
-// Returns the rendered content as []u8
-// The rendered content is stored in the struct for future use.
-pub fn render(
-    row: *Row,
-    gpa: std.mem.Allocator,
+/// Renders row to writer
+pub fn print(
+    row: Row,
+    writer: *std.Io.Writer,
     width: usize,
-) ![]const u8 {
-    if (row.rendered_content) |rendered_content| {
-        if (rendered_content.len == width) return rendered_content;
-
-        gpa.free(rendered_content);
-        row.rendered_content = null;
-    }
-
+) !void {
     if (row.content.len >= width) {
         return Error.TooLong; // TODO: Temporary (handle properly)
     }
 
-    var buffer = std.ArrayList(u8).empty;
-    try buffer.appendNTimes(gpa, ' ', 4 * row.options.indent);
+    try writer.splatByteAll(' ', 2 * row.options.indent);
 
     const backgroundColor = comptime Color.black.background();
 
@@ -93,40 +78,37 @@ pub fn render(
         .Heading => {
             const esc: []const u8 = comptime Color.dark_yellow.foreground(.bold) ++ backgroundColor;
 
-            try buffer.appendSlice(gpa, comptime Style.bold.enable() ++ Style.underline.enable());
-            try buffer.appendSlice(gpa, esc);
-            try buffer.appendSlice(gpa, row.content);
-            try buffer.appendSlice(gpa, comptime Style.bold.disable() ++ Style.underline.disable());
-            try buffer.append(gpa, '\n');
+            try writer.writeAll(comptime Style.bold.enable() ++ Style.underline.enable());
+            try writer.writeAll(esc);
+            try writer.writeAll(row.content);
+            try writer.writeAll(comptime Style.bold.disable() ++ Style.underline.disable());
+            try writer.writeByte('\n');
         },
         .SubHeading => {
             const esc: []const u8 = comptime Color.blue.foreground(.bold) ++ backgroundColor;
 
-            try buffer.appendSlice(gpa, comptime Style.bold.enable() ++ Style.underline.enable());
-            try buffer.appendSlice(gpa, esc);
-            try buffer.appendSlice(gpa, row.content);
-            try buffer.appendSlice(gpa, comptime Style.bold.disable() ++ Style.underline.disable());
-            try buffer.append(gpa, '\n');
+            try writer.writeAll(comptime Style.bold.enable() ++ Style.underline.enable());
+            try writer.writeAll(esc);
+            try writer.writeAll(row.content);
+            try writer.writeAll(comptime Style.bold.disable() ++ Style.underline.disable());
+            try writer.writeByte('\n');
         },
         .Text => {
             const esc: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
 
-            try buffer.appendSlice(gpa, esc);
-            try buffer.appendSlice(gpa, row.content);
+            try writer.writeAll(esc);
+            try writer.writeAll(row.content);
         },
         .BulletPoint => {
             const esc: []const u8 = comptime Color.green.foreground(.normal) ++ backgroundColor;
             const esc_back: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
 
-            try buffer.appendSlice(gpa, esc);
-            try buffer.appendSlice(gpa, if (@import("builtin").os.tag == .windows) "* " else "▶ ");
-            try buffer.appendSlice(gpa, esc_back);
-            try buffer.appendSlice(gpa, row.content);
+            try writer.writeAll(esc);
+            try writer.writeAll(if (@import("builtin").os.tag == .windows) "* " else "▶ ");
+            try writer.writeAll(esc_back);
+            try writer.writeAll(row.content);
         },
     }
 
-    try buffer.append(gpa, '\n');
-
-    row.rendered_content = try buffer.toOwnedSlice(gpa);
-    return row.rendered_content.?;
+    try writer.writeByte('\n');
 }

@@ -49,7 +49,6 @@ pub fn run(program: *Program, io: std.Io) !void {
     defer program.leavePresentationMode(io);
 
     var cmd: RenderCommand = .init(
-        program.gpa,
         stdout,
         try size.getTerminalSize(io),
     );
