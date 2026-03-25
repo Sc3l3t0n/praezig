@@ -38,6 +38,7 @@ pub fn main(init: std.process.Init) !void {
         io,
         gpa,
         stdout,
+        stderr,
         path,
     );
     defer program.deinit();

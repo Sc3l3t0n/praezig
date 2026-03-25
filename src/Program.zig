@@ -16,6 +16,7 @@ pub const Program = @This();
 
 gpa: std.mem.Allocator,
 stdout: *Writer,
+stderr: *Writer,
 
 presentation: Presentation,
 
@@ -23,11 +24,13 @@ pub fn init(
     io: std.Io,
     gpa: Allocator,
     stdout: *Writer,
+    stderr: *Writer,
     path: []const u8,
 ) !Program {
     return .{
         .gpa = gpa,
         .stdout = stdout,
+        .stderr = stderr,
         .presentation = try Presentation.fromFile(io, gpa, path),
     };
 }
@@ -75,7 +78,11 @@ pub fn run(program: *Program, io: std.Io) !void {
                 try stdout.print(termutils.backspace, .{});
             },
             .window_resize => |ts| cmd.size = ts,
-            .error_occured => break, // TODO: Handle recoverable
+            .error_occured => |err| {
+                try program.stderr.print("Error occured: {t}\n", .{err});
+                try program.stderr.flush();
+                break;
+            },
         }
 
         try program.printPage(cmd, index);
