@@ -32,7 +32,7 @@ pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
 
 pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
     try writer.writeAll(termutils.clear_screen);
-    try writer.writeAll(Color.black.background());
+    try Color.black.printBg(writer);
 
     try writer.splatByteAll(' ', size.col);
     try writer.splatByteAll('\n', size.row - 1);
@@ -48,7 +48,7 @@ pub fn print(
     const size = cmd.size;
 
     try writer.writeAll(termutils.clear_screen);
-    try writer.writeAll(Color.black.background());
+    try Color.black.printBg(writer);
 
     try Row.print_empty(writer, size.col);
 

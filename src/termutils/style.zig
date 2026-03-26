@@ -14,6 +14,7 @@ pub const Style = enum {
     strikethrough,
 
     pub fn printEnable(style: Style, writer: *std.Io.Writer) !void {
+        try writer.writeAll(csi);
         try writer.writeAll(style.enable());
     }
 
@@ -22,6 +23,7 @@ pub const Style = enum {
     }
 
     pub fn printDisable(style: Style, writer: *std.Io.Writer) !void {
+        try writer.writeAll(csi);
         try writer.writeAll(style.disable());
     }
 
@@ -30,7 +32,7 @@ pub const Style = enum {
     }
 
     pub fn enable(style: Style) []const u8 {
-        return csi ++ switch (style) {
+        return switch (style) {
             .bold => "1m",
             .faint => "2m",
             .italic => "3m",
@@ -43,7 +45,7 @@ pub const Style = enum {
     }
 
     pub fn disable(style: Style) []const u8 {
-        return csi ++ switch (style) {
+        return switch (style) {
             .bold => "22m",
             .faint => "22m",
             .italic => "23m",
