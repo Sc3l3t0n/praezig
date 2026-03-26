@@ -1,8 +1,9 @@
 const std = @import("std");
 const termutils = @import("termutils.zig");
+const title = @import("pageaddons.zig").title;
 
 const Color = termutils.colors.Color;
-const Attributes = @import("Attributes.zig");
+const Settings = @import("Settings.zig");
 const Row = @import("Row.zig");
 const RenderCommand = @import("RenderCommand.zig");
 
@@ -41,7 +42,7 @@ pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
 pub fn print(
     page: *Page,
     cmd: RenderCommand,
-    attributes: ?*Attributes,
+    settings: Settings,
 ) !void {
     const writer = cmd.writer;
     const size = cmd.size;
@@ -53,11 +54,9 @@ pub fn print(
 
     var rest = size.row - 2;
 
-    if (attributes) |attr| {
-        if (attr.title) |title| {
-            try title.print(writer, size.col);
-            rest -= 2;
-        }
+    if (settings.title) |value| {
+        try title.print(value, .center, writer, size.col);
+        rest -= 2;
     }
 
     try Row.print_empty(writer, size.col);
@@ -66,7 +65,7 @@ pub fn print(
 
     for (page.rows) |r| {
         // TODO: Use padding
-        try r.print(cmd.writer, size.col - 2);
+        try r.print(cmd.writer, size.col - 3, settings);
     }
 
     rest -= page.content_height - 1;
