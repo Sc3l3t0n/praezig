@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const esc = "\x1B";
 const csi = esc ++ "[";
 
@@ -11,29 +13,45 @@ pub const Style = enum {
     invisible,
     strikethrough,
 
-    pub fn enable(comptime style: Style) []const u8 {
-        return comptime switch (style) {
-            .bold => csi ++ "1m",
-            .faint => csi ++ "2m",
-            .italic => csi ++ "3m",
-            .underline => csi ++ "4m",
-            .blinking => csi ++ "5m",
-            .inverse => csi ++ "7m",
-            .invisible => csi ++ "8m",
-            .strikethrough => csi ++ "9m",
+    pub fn printEnable(style: Style, writer: *std.Io.Writer) !void {
+        try writer.writeAll(style.enable());
+    }
+
+    pub fn printEnableAll(styles: []const Style, writer: *std.Io.Writer) !void {
+        for (styles) |style| try style.printEnable(writer);
+    }
+
+    pub fn printDisable(style: Style, writer: *std.Io.Writer) !void {
+        try writer.writeAll(style.disable());
+    }
+
+    pub fn printDisableAll(styles: []const Style, writer: *std.Io.Writer) !void {
+        for (styles) |style| try style.printDisable(writer);
+    }
+
+    pub fn enable(style: Style) []const u8 {
+        return csi ++ switch (style) {
+            .bold => "1m",
+            .faint => "2m",
+            .italic => "3m",
+            .underline => "4m",
+            .blinking => "5m",
+            .inverse => "7m",
+            .invisible => "8m",
+            .strikethrough => "9m",
         };
     }
 
-    pub fn disable(comptime style: Style) []const u8 {
-        return comptime switch (style) {
-            .bold => csi ++ "22m",
-            .faint => csi ++ "22m",
-            .italic => csi ++ "23m",
-            .underline => csi ++ "24m",
-            .blinking => csi ++ "25m",
-            .inverse => csi ++ "27m",
-            .invisible => csi ++ "28m",
-            .strikethrough => csi ++ "29m",
+    pub fn disable(style: Style) []const u8 {
+        return csi ++ switch (style) {
+            .bold => "22m",
+            .faint => "22m",
+            .italic => "23m",
+            .underline => "24m",
+            .blinking => "25m",
+            .inverse => "27m",
+            .invisible => "28m",
+            .strikethrough => "29m",
         };
     }
 };
