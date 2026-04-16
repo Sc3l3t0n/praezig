@@ -34,13 +34,16 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    var program = try Program.init(
+    var program = Program.init(
         io,
         gpa,
         stdout,
         stderr,
         path,
-    );
+    ) catch {
+        try stderr.flush();
+        std.process.exit(1);
+    };
     defer program.deinit();
 
     try program.run(io);

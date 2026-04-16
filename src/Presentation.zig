@@ -27,6 +27,7 @@ pub fn deinit(presentation: *Presentation, gpa: mem.Allocator) void {
 pub fn parse(
     gpa: mem.Allocator,
     content: []const u8,
+    stderr: *std.Io.Writer,
 ) !Presentation {
     const win_encoded = mem.containsAtLeast(u8, content, 1, "\r\n");
     var iterator = if (win_encoded)
@@ -34,7 +35,7 @@ pub fn parse(
     else
         mem.splitSequence(u8, content, "\n");
 
-    const settings = try parseSettings(gpa, &iterator);
+    const settings = try parseSettings(gpa, &iterator, stderr);
 
     var pages = std.ArrayList(Page).empty;
     var rows = std.ArrayList(Row).empty;
@@ -89,6 +90,7 @@ pub fn fromFile(
     io: Io,
     gpa: mem.Allocator,
     path: []const u8,
+    stderr: *std.Io.Writer,
 ) !Presentation {
     const file = if (fs.path.isAbsolute(path))
         try Io.Dir.openFileAbsolute(io, path, .{})
@@ -105,10 +107,14 @@ pub fn fromFile(
     );
     defer gpa.free(file_content);
 
-    return try parse(gpa, file_content);
+    return try parse(gpa, file_content, stderr);
 }
 
-fn parseSettings(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !Settings {
+fn parseSettings(
+    gpa: mem.Allocator,
+    iterator: *mem.SplitIterator(u8, .sequence),
+    stderr: *std.Io.Writer,
+) !Settings {
     const peek = iterator.peek();
     if (peek == null or !mem.startsWith(u8, peek.?, "---")) return .{};
 
@@ -124,7 +130,14 @@ fn parseSettings(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)
     const len = iterator.index.? - start_i - iterator.delimiter.len;
     _ = iterator.next();
 
-    return try Settings.parse(gpa, value[0..len], null);
+    var diag: std.zon.parse.Diagnostics = .{};
+    defer diag.deinit(gpa);
+
+    return Settings.parse(gpa, value[0..len], &diag) catch |err| {
+        try stderr.writeAll("An error occured while parsing settings:\n\n");
+        try stderr.print("{f}\n", .{diag});
+        return err;
+    };
 }
 
 pub fn printPage(
@@ -150,14 +163,12 @@ const testing = std.testing;
 
 test "Parser Headings" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\# Heading 1
         \\# Heading 2
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
 
     const rows = parsed.pages[0].rows;
@@ -169,14 +180,12 @@ test "Parser Headings" {
 
 test "Parser SubHeadings" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\## SubHeading 1
         \\## SubHeading 2
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
 
     const rows = parsed.pages[0].rows;
@@ -190,15 +199,14 @@ test "Parser SubHeadings" {
 
 test "Parser BulletPoints" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\- BulletPoint 1
         \\- BulletPoint 2
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
+
     const rows = parsed.pages[0].rows;
 
     try testing.expectEqual(2, rows.len);
@@ -210,15 +218,14 @@ test "Parser BulletPoints" {
 
 test "Parser Text" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\Text 1
         \\Text 2
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
+
     const rows = parsed.pages[0].rows;
 
     try testing.expectEqual(2, rows.len);
@@ -230,21 +237,21 @@ test "Parser Text" {
 
 test "Parser Page" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\# Heading 1
         \\---
         \\---
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
+
     try testing.expectEqual(3, parsed.pages.len);
 }
 
 test "Parse Mixed" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\# Heading 1
         \\## SubHeading 1
@@ -256,7 +263,7 @@ test "Parse Mixed" {
         \\- BulletPoint 2
         \\Text 2
     ;
-    var parsed = try parse(gpa, content);
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
 
     try testing.expectEqual(2, parsed.pages.len);
@@ -273,17 +280,16 @@ test "Parse Mixed" {
 
 test "Skip Empty Line before Heading" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\# Heading 1
         \\---
         \\
         \\# Heading 2
     ;
-    var parsed = try parse(
-        gpa,
-        content,
-    );
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
+
     const rows = parsed.pages[1].rows;
     try testing.expectEqual(1, rows.len);
     try testing.expectEqualStrings("Heading 2", rows[0].content);
@@ -291,6 +297,7 @@ test "Skip Empty Line before Heading" {
 
 test "Settings are parsed" {
     const gpa = testing.allocator;
+    var writer = std.Io.Writer.fixed(&.{});
     const content =
         \\---
         \\.addons = .{
@@ -299,7 +306,7 @@ test "Settings are parsed" {
         \\---
         \\# Heading 1
     ;
-    var parsed = try parse(gpa, content);
+    var parsed = try parse(gpa, content, &writer);
     defer parsed.deinit(gpa);
 
     try testing.expectEqualStrings(

@@ -30,7 +30,7 @@ pub fn init(
         .gpa = gpa,
         .stdout = stdout,
         .stderr = stderr,
-        .presentation = try Presentation.fromFile(io, gpa, path),
+        .presentation = try Presentation.fromFile(io, gpa, path, stderr),
     };
 }
 
