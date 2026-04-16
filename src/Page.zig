@@ -1,6 +1,7 @@
 const std = @import("std");
 const termutils = @import("termutils.zig");
 const title = @import("pageaddons.zig").title;
+const page_indicator = @import("pageaddons.zig").page_indicator;
 
 const Color = termutils.colors.Color;
 const Settings = @import("Settings.zig");
@@ -45,6 +46,8 @@ pub fn printEmpty(
 
 pub fn print(
     page: *Page,
+    index: usize,
+    max_page: usize,
     cmd: RenderCommand,
     settings: Settings,
 ) !void {
@@ -72,8 +75,15 @@ pub fn print(
         try r.print(cmd.writer, size.col, settings);
     }
 
-    rest -= page.content_height - 1;
+    rest -= page.content_height;
 
     try writer.splatByteAll('\n', rest);
+
+    if (settings.addons.page_indicator) {
+        try page_indicator.print(index, max_page, .center, writer, size.col, settings);
+    } else {
+        try writer.writeByte('\n');
+    }
+
     try writer.writeAll(termutils.colors.reset);
 }

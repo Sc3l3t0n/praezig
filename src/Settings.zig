@@ -14,6 +14,7 @@ pub const Colors = struct {
 
 pub const TextColors = struct {
     title: Color = .white,
+    page_indicator: Color = .white,
     heading: Color = .dark_yellow,
     sub_heading: Color = .blue,
     normal_text: Color = .white,
@@ -22,11 +23,13 @@ pub const TextColors = struct {
 
 pub const DecorationColors = struct {
     title: Color = .white,
+    page_indicator: Color = .white,
     bullet_point: Color = .green,
 };
 
 pub const Addons = struct {
     title: ?[]const u8 = null,
+    page_indicator: bool = true,
 };
 
 addons: Addons = .{},

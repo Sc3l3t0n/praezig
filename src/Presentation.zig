@@ -135,6 +135,8 @@ pub fn printPage(
     if (index >= presentation.pages.len) return error.IndexOutOfRange;
 
     try presentation.pages[index].print(
+        index,
+        presentation.pages.len,
         cmd,
         presentation.settings,
     );
