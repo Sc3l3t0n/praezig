@@ -55,7 +55,7 @@ pub fn run(program: *Program, io: std.Io) !void {
     var index: usize = 0;
 
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(stdout, cmd.size);
+    try Page.printEmpty(stdout, cmd.size, program.presentation.settings);
     try stdout.flush();
 
     try program.printPage(cmd, index);

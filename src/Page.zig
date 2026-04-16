@@ -30,9 +30,13 @@ pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
     page.* = undefined;
 }
 
-pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
+pub fn printEmpty(
+    writer: *std.Io.Writer,
+    size: termutils.size.TermSize,
+    settings: Settings,
+) !void {
     try writer.writeAll(termutils.clear_screen);
-    try Color.black.printBg(writer);
+    try settings.colors.background.printBg(writer);
 
     try writer.splatByteAll(' ', size.col);
     try writer.splatByteAll('\n', size.row - 1);
