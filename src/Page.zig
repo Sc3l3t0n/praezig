@@ -48,14 +48,14 @@ pub fn print(
     const size = cmd.size;
 
     try writer.writeAll(termutils.clear_screen);
-    try Color.black.printBg(writer);
+    try settings.colors.background.printBg(writer);
 
     try Row.print_empty(writer, size.col);
 
     var rest = size.row - 2;
 
     if (settings.title) |value| {
-        try title.print(value, .center, writer, size.col);
+        try title.print(value, .center, writer, size.col, settings);
         rest -= 2;
     }
 

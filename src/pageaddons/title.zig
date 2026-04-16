@@ -1,4 +1,5 @@
 const std = @import("std");
+const Settings = @import("../Settings.zig");
 const HorizontalAlignment = @import("../style.zig").HorizontalAlignment;
 
 pub fn print(
@@ -6,6 +7,7 @@ pub fn print(
     alignment: HorizontalAlignment,
     writer: *std.Io.Writer,
     width: usize,
+    settings: Settings,
 ) !void {
     const padding: usize = switch (alignment) {
         .center => (width - value.len) / 2,
@@ -13,9 +15,15 @@ pub fn print(
         .right => width - value.len,
     };
 
+    try settings.colors.text.title.printFg(writer, .bold);
+    try settings.colors.background.printBg(writer);
+
     try writer.splatByteAll(' ', padding);
     try writer.writeAll(value);
     try writer.writeByte('\n');
+
+    try settings.colors.decorations.title.printFg(writer, .bold);
+    try settings.colors.background.printBg(writer);
     try writer.splatByteAll('=', width);
 }
 
