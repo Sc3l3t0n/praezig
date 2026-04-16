@@ -5,7 +5,6 @@ const termutils = @import("termutils.zig");
 const size = termutils.size;
 
 const Presentation = @import("Presentation.zig");
-const Attributes = @import("Attributes.zig");
 const Page = @import("Page.zig");
 const RenderCommand = @import("RenderCommand.zig");
 const Allocator = std.mem.Allocator;
