@@ -70,13 +70,22 @@ Or without the object braces:
 
 ```markdown
 ---
-.title = "My Presentation"
+.title = "Example Title",
+.colors = .{
+    .decorations = .{
+        .title = .green,
+    },
+    .text = .{
+        .title = .cyan,
+    }
+},
 ---
 
 # Slide 1
 ```
 
-Attributes are optional and allow you to configure presentation behavior.
+Settings are optional and allow you to configure presentation behavior.
+You can find a full list of them in [Settings.zig](./src/Settings.zig) for now.
 
 ### Run Presentation
 
