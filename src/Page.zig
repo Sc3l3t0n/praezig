@@ -1,8 +1,9 @@
 const std = @import("std");
 const termutils = @import("termutils.zig");
+const title = @import("pageaddons.zig").title;
 
 const Color = termutils.colors.Color;
-const Attributes = @import("Attributes.zig");
+const Settings = @import("Settings.zig");
 const Row = @import("Row.zig");
 const RenderCommand = @import("RenderCommand.zig");
 
@@ -29,9 +30,13 @@ pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
     page.* = undefined;
 }
 
-pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
+pub fn printEmpty(
+    writer: *std.Io.Writer,
+    size: termutils.size.TermSize,
+    settings: Settings,
+) !void {
     try writer.writeAll(termutils.clear_screen);
-    try writer.writeAll(Color.black.background());
+    try settings.colors.background.printBg(writer);
 
     try writer.splatByteAll(' ', size.col);
     try writer.splatByteAll('\n', size.row - 1);
@@ -41,23 +46,21 @@ pub fn printEmpty(writer: *std.Io.Writer, size: termutils.size.TermSize) !void {
 pub fn print(
     page: *Page,
     cmd: RenderCommand,
-    attributes: ?*Attributes,
+    settings: Settings,
 ) !void {
     const writer = cmd.writer;
     const size = cmd.size;
 
     try writer.writeAll(termutils.clear_screen);
-    try writer.writeAll(Color.black.background());
+    try settings.colors.background.printBg(writer);
 
     try Row.print_empty(writer, size.col);
 
     var rest = size.row - 2;
 
-    if (attributes) |attr| {
-        if (attr.title) |title| {
-            try title.print(writer, size.col);
-            rest -= 2;
-        }
+    if (settings.title) |value| {
+        try title.print(value, .center, writer, size.col, settings);
+        rest -= 2;
     }
 
     try Row.print_empty(writer, size.col);
@@ -66,7 +69,7 @@ pub fn print(
 
     for (page.rows) |r| {
         // TODO: Use padding
-        try r.print(cmd.writer, size.col - 2);
+        try r.print(cmd.writer, size.col, settings);
     }
 
     rest -= page.content_height - 1;

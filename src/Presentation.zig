@@ -3,7 +3,7 @@ const mem = std.mem;
 const fs = std.fs;
 
 const Io = std.Io;
-const Attributes = @import("Attributes.zig");
+const Settings = @import("Settings.zig");
 const Page = @import("Page.zig");
 const Row = @import("Row.zig");
 const RenderCommand = @import("RenderCommand.zig");
@@ -12,10 +12,10 @@ const TermSize = @import("termutils.zig").size.TermSize;
 const Presentation = @This();
 
 pages: []Page,
-attributes: ?Attributes,
+settings: Settings,
 
 pub fn deinit(presentation: *Presentation, gpa: mem.Allocator) void {
-    if (presentation.attributes) |*a| a.deinit(gpa);
+    presentation.settings.deinit(gpa);
     for (presentation.pages) |*page| {
         page.deinit(gpa);
     }
@@ -34,7 +34,7 @@ pub fn parse(
     else
         mem.splitSequence(u8, content, "\n");
 
-    const attributes = try parseAttributes(gpa, &iterator);
+    const settings = try parseSettings(gpa, &iterator);
 
     var pages = std.ArrayList(Page).empty;
     var rows = std.ArrayList(Row).empty;
@@ -82,7 +82,7 @@ pub fn parse(
     const p = Page.init(try rows.toOwnedSlice(gpa));
     try pages.append(gpa, p);
 
-    return .{ .pages = try pages.toOwnedSlice(gpa), .attributes = attributes };
+    return .{ .pages = try pages.toOwnedSlice(gpa), .settings = settings };
 }
 
 pub fn fromFile(
@@ -108,9 +108,9 @@ pub fn fromFile(
     return try parse(gpa, file_content);
 }
 
-fn parseAttributes(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !?Attributes {
+fn parseSettings(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequence)) !Settings {
     const peek = iterator.peek();
-    if (peek == null or !mem.startsWith(u8, peek.?, "---")) return null;
+    if (peek == null or !mem.startsWith(u8, peek.?, "---")) return .{};
 
     _ = iterator.next();
     const start_i = iterator.index.?;
@@ -124,7 +124,7 @@ fn parseAttributes(gpa: mem.Allocator, iterator: *mem.SplitIterator(u8, .sequenc
     const len = iterator.index.? - start_i - iterator.delimiter.len;
     _ = iterator.next();
 
-    return try Attributes.parse(gpa, value[0..len], null);
+    return try Settings.parse(gpa, value[0..len], null);
 }
 
 pub fn printPage(
@@ -136,7 +136,7 @@ pub fn printPage(
 
     try presentation.pages[index].print(
         cmd,
-        if (presentation.attributes) |*attr| attr else null,
+        presentation.settings,
     );
 }
 
@@ -287,7 +287,7 @@ test "Skip Empty Line before Heading" {
     try testing.expectEqualStrings("Heading 2", rows[0].content);
 }
 
-test "Attributes are parsed" {
+test "Settings are parsed" {
     const gpa = testing.allocator;
     const content =
         \\---
@@ -300,7 +300,7 @@ test "Attributes are parsed" {
 
     try testing.expectEqualStrings(
         "Test",
-        parsed.attributes.?.title.?.value,
+        parsed.settings.title.?,
     );
     try testing.expectEqualStrings(
         "Heading 1",

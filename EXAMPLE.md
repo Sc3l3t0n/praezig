@@ -1,5 +1,13 @@
 ---
-.title = "How to use praezig"
+.title = "How to use praezig",
+.colors = .{
+    .decorations = .{
+        .title = .green,
+    },
+    .text = .{
+        .title = .cyan,
+    }
+},
 ---
 
 # How to use praezig

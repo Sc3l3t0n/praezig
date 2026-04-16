@@ -3,6 +3,7 @@ const style = @import("style.zig");
 
 const Color = @import("termutils.zig").colors.Color;
 const Style = @import("termutils.zig").style.Style;
+const Settings = @import("Settings.zig");
 
 pub const Type = enum {
     Heading,
@@ -65,6 +66,7 @@ pub fn print(
     row: Row,
     writer: *std.Io.Writer,
     width: usize,
+    settings: Settings,
 ) !void {
     if (row.content.len >= width) {
         return Error.TooLong; // TODO: Temporary (handle properly)
@@ -72,40 +74,46 @@ pub fn print(
 
     try writer.splatByteAll(' ', 2 * row.options.indent);
 
-    const backgroundColor = comptime Color.black.background();
+    const backgroundColor = settings.colors.background;
 
     switch (row.row_type) {
         .Heading => {
-            const esc: []const u8 = comptime Color.dark_yellow.foreground(.bold) ++ backgroundColor;
+            const styles = [_]Style{ .bold, .underline };
+            try Style.printEnableAll(&styles, writer);
 
-            try writer.writeAll(comptime Style.bold.enable() ++ Style.underline.enable());
-            try writer.writeAll(esc);
+            try settings.colors.text.heading.printFg(writer, .bold);
+            try backgroundColor.printBg(writer);
+
             try writer.writeAll(row.content);
-            try writer.writeAll(comptime Style.bold.disable() ++ Style.underline.disable());
             try writer.writeByte('\n');
+
+            try Style.printDisableAll(&styles, writer);
         },
         .SubHeading => {
-            const esc: []const u8 = comptime Color.blue.foreground(.bold) ++ backgroundColor;
+            const styles = [_]Style{ .bold, .underline };
+            try Style.printEnableAll(&styles, writer);
 
-            try writer.writeAll(comptime Style.bold.enable() ++ Style.underline.enable());
-            try writer.writeAll(esc);
+            try settings.colors.text.sub_heading.printFg(writer, .bold);
+            try backgroundColor.printBg(writer);
+
             try writer.writeAll(row.content);
-            try writer.writeAll(comptime Style.bold.disable() ++ Style.underline.disable());
             try writer.writeByte('\n');
+            try Style.printDisableAll(&styles, writer);
         },
         .Text => {
-            const esc: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
+            try settings.colors.text.normal_text.printFg(writer, .normal);
+            try backgroundColor.printBg(writer);
 
-            try writer.writeAll(esc);
             try writer.writeAll(row.content);
         },
         .BulletPoint => {
-            const esc: []const u8 = comptime Color.green.foreground(.normal) ++ backgroundColor;
-            const esc_back: []const u8 = comptime Color.white.foreground(.normal) ++ backgroundColor;
+            try settings.colors.decorations.bullet_point.printFg(writer, .normal);
+            try backgroundColor.printBg(writer);
 
-            try writer.writeAll(esc);
             try writer.writeAll(if (@import("builtin").os.tag == .windows) "* " else "▶ ");
-            try writer.writeAll(esc_back);
+            try settings.colors.text.bullet_point.printFg(writer, .normal);
+            try backgroundColor.printBg(writer);
+
             try writer.writeAll(row.content);
         },
     }
