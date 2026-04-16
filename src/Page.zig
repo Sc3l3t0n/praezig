@@ -69,7 +69,7 @@ pub fn print(
 
     for (page.rows) |r| {
         // TODO: Use padding
-        try r.print(cmd.writer, size.col - 3, settings);
+        try r.print(cmd.writer, size.col, settings);
     }
 
     rest -= page.content_height - 1;
