@@ -58,7 +58,7 @@ pub fn print(
 
     var rest = size.row - 2;
 
-    if (settings.title) |value| {
+    if (settings.addons.title) |value| {
         try title.print(value, .center, writer, size.col, settings);
         rest -= 2;
     }

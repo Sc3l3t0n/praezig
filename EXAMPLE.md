@@ -1,5 +1,7 @@
 ---
-.title = "How to use praezig",
+.addons = .{
+    .title = "How to use praezig",
+},
 .colors = .{
     .decorations = .{
         .title = .green,

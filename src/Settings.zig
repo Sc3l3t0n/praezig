@@ -25,7 +25,11 @@ pub const DecorationColors = struct {
     bullet_point: Color = .green,
 };
 
-title: ?[]const u8 = null,
+pub const Addons = struct {
+    title: ?[]const u8 = null,
+};
+
+addons: Addons = .{},
 colors: Colors = .{},
 
 pub fn parse(gpa: std.mem.Allocator, slice: []const u8, diag: ?*zon.parse.Diagnostics) !Settings {
@@ -42,7 +46,7 @@ pub fn parse(gpa: std.mem.Allocator, slice: []const u8, diag: ?*zon.parse.Diagno
 }
 
 pub fn deinit(settings: *Settings, gpa: std.mem.Allocator) void {
-    if (settings.title) |title| gpa.free(title);
+    if (settings.addons.title) |title| gpa.free(title);
     settings.* = undefined;
 }
 
@@ -51,13 +55,15 @@ test "parse works without object identifiert (.{})" {
     const gpa = t.allocator;
 
     const input =
-        \\.title = "Hello"
+        \\.addons = .{
+        \\  .title = "Hello",
+        \\},
     ;
 
     var attributes = try parse(gpa, input, null);
     defer attributes.deinit(gpa);
 
-    try t.expectEqualStrings(attributes.title.?, "Hello");
+    try t.expectEqualStrings(attributes.addons.title.?, "Hello");
 }
 
 test "parse works with object identifiert (.{})" {
@@ -66,14 +72,16 @@ test "parse works with object identifiert (.{})" {
 
     const input =
         \\.{
-        \\.title = "Hello"
+        \\  .addons = .{
+        \\    .title = "Hello",
+        \\  },
         \\}
     ;
 
     var attributes = try parse(gpa, input, null);
     defer attributes.deinit(gpa);
 
-    try t.expectEqualStrings(attributes.title.?, "Hello");
+    try t.expectEqualStrings(attributes.addons.title.?, "Hello");
 }
 
 test "parse works for colors" {

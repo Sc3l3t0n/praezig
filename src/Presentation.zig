@@ -291,7 +291,9 @@ test "Settings are parsed" {
     const gpa = testing.allocator;
     const content =
         \\---
-        \\.title = "Test"
+        \\.addons = .{
+        \\  .title = "Test",
+        \\},
         \\---
         \\# Heading 1
     ;
@@ -300,7 +302,7 @@ test "Settings are parsed" {
 
     try testing.expectEqualStrings(
         "Test",
-        parsed.settings.title.?,
+        parsed.settings.addons.title.?,
     );
     try testing.expectEqualStrings(
         "Heading 1",

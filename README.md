@@ -70,7 +70,9 @@ Or without the object braces:
 
 ```markdown
 ---
-.title = "Example Title",
+.addons = .{
+    .title = "Example Title",
+}
 .colors = .{
     .decorations = .{
         .title = .green,
