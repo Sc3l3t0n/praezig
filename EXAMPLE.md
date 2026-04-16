@@ -8,7 +8,12 @@
     },
     .text = .{
         .title = .cyan,
-    }
+    },
+},
+.alignments = .{
+    .horizontal = .{
+        .page_indicator = .right,
+    },
 },
 ---
 

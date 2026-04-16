@@ -1,5 +1,5 @@
 const std = @import("std");
-const style = @import("style.zig");
+const alignments = @import("alignments.zig");
 
 const Color = @import("termutils.zig").colors.Color;
 const Style = @import("termutils.zig").style.Style;
@@ -15,8 +15,8 @@ pub const Type = enum {
 };
 
 pub const Options = struct {
-    verticalAlignment: style.VerticalAlignment = .center,
-    horizontalAlignment: style.HorizontalAlignment = .left,
+    verticalAlignment: alignments.Vertical = .center,
+    horizontalAlignment: alignments.Horizontal = .left,
     indent: u8 = 1,
 };
 

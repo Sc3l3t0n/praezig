@@ -1,15 +1,14 @@
 const std = @import("std");
 const Settings = @import("../Settings.zig");
-const HorizontalAlignment = @import("../style.zig").HorizontalAlignment;
+const HorizontalAlignment = @import("../alignments.zig").Horizontal;
 
 pub fn print(
     value: []const u8,
-    alignment: HorizontalAlignment,
     writer: *std.Io.Writer,
     width: usize,
     settings: Settings,
 ) !void {
-    const padding: usize = switch (alignment) {
+    const padding: usize = switch (settings.alignments.horizontal.title) {
         .center => (width - value.len) / 2,
         .left => 0,
         .right => width - value.len,
@@ -35,7 +34,7 @@ test {
     defer writer_instance.deinit();
     const writer = &writer_instance.writer;
 
-    try print("Test", .center, writer, 10, .{});
+    try print("Test", writer, 10, .{});
 
     const expected = "\x1b[1;97m\x1b[40m   Test\n" ++
         "\x1b[1;97m\x1b[40m==========";

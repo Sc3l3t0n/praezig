@@ -1,6 +1,7 @@
 const std = @import("std");
 const zon = std.zon;
 const color = @import("termutils.zig").colors;
+const HorizontalAlignment = @import("alignments.zig").Horizontal;
 
 const Color = color.Color;
 
@@ -27,6 +28,15 @@ pub const DecorationColors = struct {
     bullet_point: Color = .green,
 };
 
+pub const Alignments = struct {
+    horizontal: HorizontalAlignments = .{},
+};
+
+pub const HorizontalAlignments = struct {
+    title: HorizontalAlignment = .center,
+    page_indicator: HorizontalAlignment = .center,
+};
+
 pub const Addons = struct {
     title: ?[]const u8 = null,
     page_indicator: bool = true,
@@ -34,6 +44,7 @@ pub const Addons = struct {
 
 addons: Addons = .{},
 colors: Colors = .{},
+alignments: Alignments = .{},
 
 pub fn parse(gpa: std.mem.Allocator, slice: []const u8, diag: ?*zon.parse.Diagnostics) !Settings {
     var list = try std.ArrayList(u8).initCapacity(gpa, slice.len + 3);

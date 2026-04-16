@@ -1,6 +1,6 @@
 const std = @import("std");
 const Settings = @import("../Settings.zig");
-const HorizontalAlignment = @import("../style.zig").HorizontalAlignment;
+const HorizontalAlignment = @import("../alignments.zig").Horizontal;
 
 /// String length of the seperator ' / '
 const seperator_len = 3;
@@ -9,7 +9,6 @@ pub fn print(
     /// Page index in array (0-based)
     index: usize,
     max_page: usize,
-    alignment: HorizontalAlignment,
     writer: *std.Io.Writer,
     width: usize,
     settings: Settings,
@@ -20,7 +19,7 @@ pub fn print(
     const length = page_num_places + max_page_num_places + seperator_len;
 
     // TODO: Clamp padding for terminals narrower than the rendered indicator.
-    const padding: usize = switch (alignment) {
+    const padding: usize = switch (settings.alignments.horizontal.page_indicator) {
         .center => (width - length) / 2,
         .left => 4,
         .right => width - length - 4,
@@ -55,7 +54,7 @@ test {
     defer writer_instance.deinit();
     const writer = &writer_instance.writer;
 
-    try print(0, 10, .center, writer, 10, .{});
+    try print(0, 10, writer, 10, .{});
 
     const expected = "\x1b[1;97m\x1b[40m  1" ++
         "\x1b[1;97m\x1b[40m / " ++

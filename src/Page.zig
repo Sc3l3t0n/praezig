@@ -62,7 +62,7 @@ pub fn print(
     var rest = size.row - 2;
 
     if (settings.addons.title) |value| {
-        try title.print(value, .center, writer, size.col, settings);
+        try title.print(value, writer, size.col, settings);
         rest -= 2;
     }
 
@@ -80,7 +80,7 @@ pub fn print(
     try writer.splatByteAll('\n', rest);
 
     if (settings.addons.page_indicator) {
-        try page_indicator.print(index, max_page, .center, writer, size.col, settings);
+        try page_indicator.print(index, max_page, writer, size.col, settings);
     } else {
         try writer.writeByte('\n');
     }
