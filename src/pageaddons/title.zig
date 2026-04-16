@@ -35,12 +35,10 @@ test {
     defer writer_instance.deinit();
     const writer = &writer_instance.writer;
 
-    try print("Test", .center, writer, 10);
+    try print("Test", .center, writer, 10, .{});
 
-    const expected =
-        \\   Test
-        \\==========
-    ;
+    const expected = "\x1b[1;97m\x1b[40m   Test\n" ++
+        "\x1b[1;97m\x1b[40m==========";
 
     try t.expectEqualStrings(expected, writer_instance.written());
 }
