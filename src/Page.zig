@@ -4,9 +4,8 @@ const title = @import("pageaddons.zig").title;
 const page_indicator = @import("pageaddons.zig").page_indicator;
 
 const Color = termutils.colors.Color;
-const Settings = @import("Settings.zig");
 const Row = @import("Row.zig");
-const RenderCommand = @import("RenderCommand.zig");
+const Terminal = @import("Terminal.zig");
 
 const Page = @This();
 
@@ -31,59 +30,52 @@ pub fn deinit(page: *Page, gpa: std.mem.Allocator) void {
     page.* = undefined;
 }
 
-pub fn printEmpty(
-    writer: *std.Io.Writer,
-    size: termutils.size.TermSize,
-    settings: Settings,
-) !void {
-    try writer.writeAll(termutils.clear_screen);
-    try settings.colors.background.printBg(writer);
+pub fn printEmpty(term: Terminal) !void {
+    try term.clearScreen();
+    try term.defaultBg();
 
-    try writer.splatByteAll(' ', size.col);
-    try writer.splatByteAll('\n', size.row - 1);
-    try writer.writeAll(termutils.colors.reset);
+    try term.splatByteAll(' ', term.size.col);
+    try term.splatByteAll('\n', term.size.row - 1);
+
+    try term.resetColors();
 }
 
 pub fn print(
     page: *Page,
+    term: Terminal,
     index: usize,
     max_page: usize,
-    cmd: RenderCommand,
-    settings: Settings,
 ) !void {
-    const writer = cmd.writer;
-    const size = cmd.size;
+    try term.writeAll(termutils.clear_screen);
+    try term.defaultBg();
 
-    try writer.writeAll(termutils.clear_screen);
-    try settings.colors.background.printBg(writer);
+    try Row.print_empty(term);
 
-    try Row.print_empty(writer, size.col);
+    var rest = term.size.row - 2;
 
-    var rest = size.row - 2;
-
-    if (settings.addons.title) |value| {
-        try title.print(value, writer, size.col, settings);
+    if (term.settings.addons.title) |value| {
+        try title.print(term, value);
         rest -= 2;
     }
 
-    try Row.print_empty(writer, size.col);
+    try Row.print_empty(term);
 
     rest -= 1;
 
     for (page.rows) |r| {
         // TODO: Use padding
-        try r.print(cmd.writer, size.col, settings);
+        try r.print(term);
     }
 
     rest -= page.content_height;
 
-    try writer.splatByteAll('\n', rest);
+    try term.splatByteAll('\n', rest);
 
-    if (settings.addons.page_indicator) {
-        try page_indicator.print(index, max_page, writer, size.col, settings);
+    if (term.settings.addons.page_indicator) {
+        try page_indicator.print(term, index, max_page);
     } else {
-        try writer.writeByte('\n');
+        try term.writeByte('\n');
     }
 
-    try writer.writeAll(termutils.colors.reset);
+    try term.resetColors();
 }

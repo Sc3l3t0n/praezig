@@ -3,7 +3,7 @@ const alignments = @import("alignments.zig");
 
 const Color = @import("termutils.zig").colors.Color;
 const Style = @import("termutils.zig").style.Style;
-const Settings = @import("Settings.zig");
+const Terminal = @import("Terminal.zig");
 
 pub const Type = enum {
     Heading,
@@ -57,66 +57,65 @@ pub fn get_height(row: Row) u8 {
     };
 }
 
-pub fn print_empty(writer: *std.Io.Writer, width: usize) !void {
-    try writer.splatByteAll(' ', width);
+pub fn print_empty(term: Terminal) !void {
+    try term.splatByteAll(
+        ' ',
+        term.size.col,
+    );
 }
 
 /// Renders row to writer
-pub fn print(
-    row: Row,
-    writer: *std.Io.Writer,
-    width: usize,
-    settings: Settings,
-) !void {
-    if (row.content.len >= width) {
+pub fn print(row: Row, term: Terminal) !void {
+    const settings = term.settings;
+
+    if (row.content.len >= term.size.col) {
         return Error.TooLong; // TODO: Temporary (handle properly)
     }
 
-    try writer.splatByteAll(' ', 2 * row.options.indent);
-
-    const backgroundColor = settings.colors.background;
+    try term.splatByteAll(' ', 2 * row.options.indent);
 
     switch (row.row_type) {
         .Heading => {
             const styles = [_]Style{ .bold, .underline };
-            try Style.printEnableAll(&styles, writer);
+            try term.enableStyleAll(&styles);
 
-            try settings.colors.text.heading.printFg(writer, .bold);
-            try backgroundColor.printBg(writer);
+            try term.setFg(settings.colors.text.heading, .bold);
+            try term.defaultBg();
 
-            try writer.writeAll(row.content);
-            try writer.writeByte('\n');
+            try term.writeAll(row.content);
+            try term.writeByte('\n');
 
-            try Style.printDisableAll(&styles, writer);
+            try term.disableStyleAll(&styles);
         },
         .SubHeading => {
             const styles = [_]Style{ .bold, .underline };
-            try Style.printEnableAll(&styles, writer);
+            try term.enableStyleAll(&styles);
 
-            try settings.colors.text.sub_heading.printFg(writer, .bold);
-            try backgroundColor.printBg(writer);
+            try term.setFg(settings.colors.text.sub_heading, .bold);
+            try term.defaultBg();
 
-            try writer.writeAll(row.content);
-            try writer.writeByte('\n');
-            try Style.printDisableAll(&styles, writer);
+            try term.writeAll(row.content);
+            try term.writeByte('\n');
+
+            try term.disableStyleAll(&styles);
         },
         .Text => {
-            try settings.colors.text.normal_text.printFg(writer, .normal);
-            try backgroundColor.printBg(writer);
+            try term.setFg(settings.colors.text.normal_text, .normal);
+            try term.defaultBg();
 
-            try writer.writeAll(row.content);
+            try term.writeAll(row.content);
         },
         .BulletPoint => {
-            try settings.colors.decorations.bullet_point.printFg(writer, .normal);
-            try backgroundColor.printBg(writer);
+            try term.setFg(settings.colors.decorations.bullet_point, .normal);
+            try term.defaultBg();
 
-            try writer.writeAll(if (@import("builtin").os.tag == .windows) "* " else "▶ ");
-            try settings.colors.text.bullet_point.printFg(writer, .normal);
-            try backgroundColor.printBg(writer);
+            try term.writeAll(if (@import("builtin").os.tag == .windows) "* " else "▶ ");
+            try term.setFg(settings.colors.text.bullet_point, .normal);
+            try term.defaultBg();
 
-            try writer.writeAll(row.content);
+            try term.writeAll(row.content);
         },
     }
 
-    try writer.writeByte('\n');
+    try term.writeByte('\n');
 }

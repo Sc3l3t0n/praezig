@@ -12,8 +12,8 @@ pub const Error = error{
 };
 
 pub const TermSize = struct {
-    col: usize,
-    row: usize,
+    col: usize = 0,
+    row: usize = 0,
 };
 
 const EventWithIo = struct {

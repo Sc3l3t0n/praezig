@@ -6,7 +6,7 @@ const size = termutils.size;
 
 const Presentation = @import("Presentation.zig");
 const Page = @import("Page.zig");
-const RenderCommand = @import("RenderCommand.zig");
+const Terminal = @import("Terminal.zig");
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 const Reader = std.Io.Reader;
@@ -47,18 +47,19 @@ pub fn run(program: *Program, io: std.Io) !void {
     try program.enterPresentationMode(io);
     defer program.leavePresentationMode(io);
 
-    var cmd: RenderCommand = .init(
+    var term: Terminal = .init(
         stdout,
+        program.presentation.settings,
         try size.getTerminalSize(io),
     );
 
     var index: usize = 0;
 
     // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(stdout, cmd.size, program.presentation.settings);
+    try Page.printEmpty(term);
     try stdout.flush();
 
-    try program.printPage(cmd, index);
+    try program.printPage(term, index);
 
     while (true) {
         switch (try events.get(io)) {
@@ -71,7 +72,7 @@ pub fn run(program: *Program, io: std.Io) !void {
                 }
                 try stdout.print(termutils.backspace, .{});
             },
-            .window_resize => |ts| cmd.size = ts,
+            .window_resize => |ts| term.size = ts,
             .error_occured => |err| {
                 try program.stderr.print("Error occured: {t}\n", .{err});
                 try program.stderr.flush();
@@ -79,16 +80,13 @@ pub fn run(program: *Program, io: std.Io) !void {
             },
         }
 
-        try program.printPage(cmd, index);
+        try program.printPage(term, index);
     }
 }
 
-pub fn printPage(program: *Program, cmd: RenderCommand, index: usize) !void {
-    try program.presentation.printPage(
-        cmd,
-        index,
-    );
-    try cmd.writer.flush();
+pub fn printPage(program: *Program, term: Terminal, index: usize) !void {
+    try program.presentation.printPage(term, index);
+    try term.stdout.flush();
 }
 
 fn enterPresentationMode(program: *Program, io: std.Io) !void {

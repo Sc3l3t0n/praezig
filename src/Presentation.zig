@@ -6,8 +6,7 @@ const Io = std.Io;
 const Settings = @import("Settings.zig");
 const Page = @import("Page.zig");
 const Row = @import("Row.zig");
-const RenderCommand = @import("RenderCommand.zig");
-const TermSize = @import("termutils.zig").size.TermSize;
+const Terminal = @import("Terminal.zig");
 
 const Presentation = @This();
 
@@ -142,16 +141,15 @@ fn parseSettings(
 
 pub fn printPage(
     presentation: *Presentation,
-    cmd: RenderCommand,
+    term: Terminal,
     index: usize,
 ) !void {
     if (index >= presentation.pages.len) return error.IndexOutOfRange;
 
     try presentation.pages[index].print(
+        term,
         index,
         presentation.pages.len,
-        cmd,
-        presentation.settings,
     );
 }
 

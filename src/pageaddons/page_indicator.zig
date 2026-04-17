@@ -1,18 +1,18 @@
 const std = @import("std");
-const Settings = @import("../Settings.zig");
+const Terminal = @import("../Terminal.zig");
 const HorizontalAlignment = @import("../alignments.zig").Horizontal;
 
 /// String length of the seperator ' / '
 const seperator_len = 3;
 
 pub fn print(
+    term: Terminal,
     /// Page index in array (0-based)
     index: usize,
     max_page: usize,
-    writer: *std.Io.Writer,
-    width: usize,
-    settings: Settings,
 ) !void {
+    const settings = term.settings;
+
     const page_num = index + 1;
     const page_num_places = numPlaces(page_num);
     const max_page_num_places = numPlaces(max_page);
@@ -20,25 +20,26 @@ pub fn print(
 
     // TODO: Clamp padding for terminals narrower than the rendered indicator.
     const padding: usize = switch (settings.alignments.horizontal.page_indicator) {
-        .center => (width - length) / 2,
+        .center => (term.size.col - length) / 2,
         .left => 4,
-        .right => width - length - 4,
+        .right => term.size.col - length - 4,
     };
 
-    try settings.colors.text.page_indicator.printFg(writer, .bold);
-    try settings.colors.background.printBg(writer);
+    try term.setFg(settings.colors.text.page_indicator, .bold);
+    try term.defaultBg();
 
-    try writer.splatByteAll(' ', padding);
-    try writer.print("{d}", .{page_num});
+    try term.splatByteAll(' ', padding);
+    try term.print("{d}", .{page_num});
 
-    try settings.colors.decorations.page_indicator.printFg(writer, .bold);
-    try settings.colors.background.printBg(writer);
-    try writer.writeAll(" / ");
+    try term.setFg(settings.colors.decorations.page_indicator, .bold);
+    try term.defaultBg();
 
-    try settings.colors.text.page_indicator.printFg(writer, .bold);
-    try settings.colors.background.printBg(writer);
-    try writer.print("{d}", .{max_page});
-    try writer.writeByte('\n');
+    try term.writeAll(" / ");
+
+    try term.setFg(settings.colors.text.page_indicator, .bold);
+    try term.defaultBg();
+    try term.print("{d}", .{max_page});
+    try term.writeByte('\n');
 }
 
 fn numPlaces(n: usize) usize {
@@ -53,8 +54,9 @@ test {
     var writer_instance = std.Io.Writer.Allocating.init(gpa);
     defer writer_instance.deinit();
     const writer = &writer_instance.writer;
+    const term: Terminal = .{ .stdout = writer, .size = .{ .col = 10 } };
 
-    try print(0, 10, writer, 10, .{});
+    try print(term, 0, 10);
 
     const expected = "\x1b[1;97m\x1b[40m  1" ++
         "\x1b[1;97m\x1b[40m / " ++
