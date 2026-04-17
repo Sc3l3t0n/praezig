@@ -10,6 +10,7 @@ const Terminal = @import("Terminal.zig");
 const Allocator = std.mem.Allocator;
 const Writer = std.Io.Writer;
 const Reader = std.Io.Reader;
+const Parser = @import("Parser.zig");
 
 pub const Program = @This();
 
@@ -26,11 +27,23 @@ pub fn init(
     stderr: *Writer,
     path: []const u8,
 ) !Program {
+    var parser = Parser.init(gpa);
+    defer parser.deinit();
+
+    parser.runFromFile(io, path) catch |err| {
+        try stderr.print("The error '{t}' occured.\n", .{err});
+        if (parser.err) |perr| {
+            try stderr.print("Error messages:\n {f}", .{perr});
+        }
+
+        return err;
+    };
+
     return .{
         .gpa = gpa,
         .stdout = stdout,
         .stderr = stderr,
-        .presentation = try Presentation.fromFile(io, gpa, path, stderr),
+        .presentation = try parser.result(),
     };
 }
 
