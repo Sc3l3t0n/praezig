@@ -1,7 +1,7 @@
 .{
     .name = .praezig,
     .version = "0.0.0",
-    .minimum_zig_version = "0.16.0-dev.2915+065c6e794",
+    .minimum_zig_version = "0.16.0",
     .fingerprint = 0xa1cb33c004afbc53, // Changing this has security and trust implications.
     .dependencies = .{},
     .paths = .{

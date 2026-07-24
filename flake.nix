@@ -5,7 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     zig.url = "github:mitchellh/zig-overlay";
-    zls.url = "github:zigtools/zls";
+    # zls.url = "github:zigtools/zls";
   };
 
   outputs = {
@@ -16,7 +16,7 @@
   } @ inputs: let
     overlays = [
       (final: prev: {
-        inherit (inputs.zls.packages.${prev.stdenv.hostPlatform.system}) zls;
+        # inherit (inputs.zls.packages.${prev.stdenv.hostPlatform.system}) zls;
         zigpkgs = inputs.zig.packages.${prev.stdenv.hostPlatform.system};
       })
     ];
@@ -27,10 +27,10 @@
     flake-utils.lib.eachSystem systems (
       system: let
         pkgs = import nixpkgs {inherit overlays system;};
-      in rec {
+      in {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            zigpkgs.master
+            zigpkgs."0.16.0"
             zls
           ];
         };
