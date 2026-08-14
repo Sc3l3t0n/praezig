@@ -8,6 +8,7 @@ pub const KeyInput = enum {
     None,
 
     fn fromFile(io: std.Io, file: std.Io.File) !KeyInput {
+        if (@import("builtin").os.tag == .windows) @compileError("fromFile does not work on windows");
         const Operation = struct {
             fn run(inner_io: std.Io, inner_file: std.Io.File, comptime n: usize) ![n]u8 {
                 var buf: [n]u8 = undefined;

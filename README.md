@@ -20,7 +20,10 @@
 
 #### Supported Platforms
 
-- **praezig** is currently supported on Linux and Windows for most functionalities.
+- **praezig** is currently supported on Linux ~and Windows for most functionalities~.
+
+> [!INFO] 
+> New key-input system does only support linux for now. This breaks windows builds.
 
 #### Coloring and Styling
 
