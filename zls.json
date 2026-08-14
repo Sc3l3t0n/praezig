@@ -1,7 +1,0 @@
-{
-  "enable_build_on_save": false,
-  "build_on_save_step": "check",
-  "build_on_save_args": [
-    "-fincremental"
-  ]
-}
