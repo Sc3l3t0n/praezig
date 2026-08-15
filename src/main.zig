@@ -1,6 +1,6 @@
 const std = @import("std");
 const termutils = @import("termutils.zig");
-const utils = @import("utils.zig");
+const args = @import("args.zig");
 
 const Program = @import("Program.zig");
 
@@ -16,19 +16,33 @@ pub fn main(init: std.process.Init) !void {
     var stderr_writer = std.Io.File.stderr().writerStreaming(io, &stderr_buf);
     const stderr = &stderr_writer.interface;
 
-    // Parse command line arguments
-    const path = utils.extractPathArg(gpa, init.minimal.args) catch |err|
-        switch (err) {
-            error.MissingPathArgument => {
-                try stderr.writeAll("No path provided\n");
-                try stderr.flush();
-                std.process.exit(1);
-            },
-            else => return err,
-        };
+    const command = try args.processArgToCommand(gpa, init.minimal.args);
+    const path = path: switch (command) {
+        .help => {
+            try args.printHelp(stdout);
+            try stdout.flush();
+            std.process.exit(0);
+        },
+        .version => {
+            try args.printVersion(stdout);
+            try stdout.flush();
+            std.process.exit(0);
+        },
+        .path => |p| break :path p,
+        .none => {
+            try stderr.writeAll("No argument provided. Write `--help` to see available.\n");
+            try stderr.flush();
+            std.process.exit(1);
+        },
+        .unknown => |s| {
+            try stderr.print("Unkown command '{s}'. Write `--help` to see available.\n", .{s});
+            try stderr.flush();
+            std.process.exit(1);
+        },
+    };
     defer gpa.free(path);
 
-    if (!utils.validatePath(io, path)) {
+    if (!args.validatePath(io, path)) {
         try stderr.print("Path is invalid: {s}\n", .{path});
         try stderr.flush();
         std.process.exit(1);
