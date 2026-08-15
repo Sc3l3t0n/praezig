@@ -46,8 +46,8 @@ pub fn print(
     index: usize,
     max_page: usize,
 ) !void {
-    try term.writeAll(termutils.clear_screen);
     try term.defaultBg();
+    try term.clearScreen();
 
     try Row.print_empty(term);
 

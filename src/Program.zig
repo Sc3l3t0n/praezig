@@ -67,11 +67,6 @@ pub fn run(program: *Program, io: std.Io) !void {
     );
 
     var index: usize = 0;
-
-    // NOTE: Fixes the first page missing some colors
-    try Page.printEmpty(term);
-    try stdout.flush();
-
     try program.printPage(term, index);
 
     while (true) {

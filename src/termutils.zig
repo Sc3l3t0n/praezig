@@ -3,6 +3,10 @@ const csi = esc ++ "[";
 
 /// Escape sequence to clear the screen.
 pub const clear_screen = csi ++ "2J";
+/// Escape sequence to move cursor to (0,0).
+pub const cursor_move_home = csi ++ "H";
+/// Escape sequence pair to dispatch `clear_screen` and `cursor_move_home` together.
+pub const clear_and_home = clear_screen ++ cursor_move_home;
 
 /// Escape sequence to switch to the alternate screen.
 pub const alternate_screen = csi ++ "?1049h";

@@ -95,5 +95,5 @@ pub fn disableStyleAll(term: Terminal, styles: []const termutils.style.Style) !v
 // --- Other Wrappers ---
 
 pub fn clearScreen(term: Terminal) !void {
-    try term.writeAll(termutils.clear_screen);
+    try term.writeAll(termutils.clear_and_home);
 }
