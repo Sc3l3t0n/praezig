@@ -13,16 +13,19 @@ const Presentation = @import("Presentation.zig");
 
 const Error = union(enum) {
     settings: std.zon.parse.Diagnostics,
+    frontmatter: enum { missing_closing },
 
     pub fn deinit(err: *Error, gpa: Allocator) void {
         switch (err.*) {
-            inline else => |*e| e.deinit(gpa),
+            .settings => |*e| e.deinit(gpa),
+            else => {},
         }
     }
 
     pub fn format(err: *const Error, writer: *Writer) Writer.Error!void {
         try switch (err.*) {
-            inline else => |e| e.format(writer),
+            .settings => |e| e.format(writer),
+            .frontmatter => writer.writeAll("Missing or malformed closing '---' after declared settings.\n"),
         };
     }
 };
@@ -166,6 +169,10 @@ fn parseSettings(
         _ = iterator.next();
     }
 
+    if (iterator.index == null) {
+        parser.err = .{ .frontmatter = .missing_closing };
+        return error.MalformedSettings;
+    }
     const len = iterator.index.? - start_i - iterator.delimiter.len;
     _ = iterator.next();
 
@@ -174,9 +181,9 @@ fn parseSettings(
     if (Settings.parse(parser.gpa, value[0..len], &diag)) |settings| {
         diag.deinit(parser.gpa);
         parser.settings = settings;
-    } else |err| {
+    } else |_| {
         parser.err = .{ .settings = diag };
-        return err;
+        return error.MalformedSettings;
     }
 }
 
@@ -378,10 +385,29 @@ test "Settings parse error handled" {
     var parser = init(gpa);
     defer parser.deinit();
 
-    try testing.expectError(error.ParseZon, parser.run(content));
+    try testing.expectError(error.MalformedSettings, parser.run(content));
 
     try testing.expectEqual(
         std.meta.Tag(Error).settings,
+        std.meta.activeTag(parser.err.?),
+    );
+}
+
+test "Settings missing closing --- handled" {
+    const gpa = testing.allocator;
+    const content =
+        \\---
+        \\.ad = .{
+        \\  .title = "Test",
+        \\},
+    ;
+    var parser = init(gpa);
+    defer parser.deinit();
+
+    try testing.expectError(error.MalformedSettings, parser.run(content));
+
+    try testing.expectEqual(
+        std.meta.Tag(Error).frontmatter,
         std.meta.activeTag(parser.err.?),
     );
 }
