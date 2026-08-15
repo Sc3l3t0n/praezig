@@ -106,7 +106,7 @@ test "validatePath" {
 test "processArgToCommand valid" {
     const t = std.testing;
     const args = struct {
-        pub fn args(arg: [:0]const u8) std.process.Args {
+        pub inline fn args(comptime arg: [:0]const u8) std.process.Args {
             return .{ .vector = &.{ "praezig", arg } };
         }
     }.args;
@@ -128,7 +128,7 @@ test "processArgToCommand valid" {
 test "processArgToCommand invalid" {
     const t = std.testing;
     const args = struct {
-        pub fn args(arg: [:0]const u8) std.process.Args {
+        pub inline fn args(comptime arg: [:0]const u8) std.process.Args {
             return .{ .vector = &.{ "praezig", arg } };
         }
     }.args;
