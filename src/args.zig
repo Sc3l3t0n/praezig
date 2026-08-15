@@ -102,3 +102,42 @@ test "validatePath" {
     try t.expect(!validateFile(t.io, tmp_dir.dir, "test.md"));
     try t.expect(!validateFile(t.io, tmp_dir.dir, "."));
 }
+
+test "processArgToCommand valid" {
+    const t = std.testing;
+    const args = struct {
+        pub fn args(arg: [:0]const u8) std.process.Args {
+            return .{ .vector = &.{ "praezig", arg } };
+        }
+    }.args;
+
+    inline for (&.{ "--help", "-h" }) |help| {
+        try t.expectEqual(Command.help, try processArgToCommand(t.allocator, args(help)));
+    }
+
+    inline for (&.{ "--version", "-v" }) |version| {
+        try t.expectEqual(Command.version, try processArgToCommand(t.allocator, args(version)));
+    }
+
+    const path = "./path/to/file";
+    const path_cmd = try processArgToCommand(t.allocator, args(path));
+    defer path_cmd.deinit(t.allocator);
+    try t.expectEqualDeep(Command{ .path = path }, path_cmd);
+}
+
+test "processArgToCommand invalid" {
+    const t = std.testing;
+    const args = struct {
+        pub fn args(arg: [:0]const u8) std.process.Args {
+            return .{ .vector = &.{ "praezig", arg } };
+        }
+    }.args;
+
+    inline for (&.{ "--unknown", "-u" }) |unknown| {
+        const unknown_cmd = try processArgToCommand(t.allocator, args(unknown));
+        defer unknown_cmd.deinit(t.allocator);
+        try t.expectEqualDeep(Command{ .unknown = unknown }, unknown_cmd);
+    }
+
+    try t.expectEqual(Command.none, try processArgToCommand(t.allocator, .{ .vector = &.{"praezig"} }));
+}
