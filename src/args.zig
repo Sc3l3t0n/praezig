@@ -80,12 +80,25 @@ pub fn processArgToCommand(
     }
 }
 
+fn validateFile(io: std.Io, dir: std.Io.Dir, path: []const u8) bool {
+    const stat = dir.statFile(io, path, .{}) catch return false;
+    return stat.kind == .file;
+}
+
 /// Checks, if a path provided is a valid file.
-pub fn validatePath(io: std.Io, path: []const u8) bool {
-    if (std.fs.path.isAbsolute(path)) {
-        Dir.accessAbsolute(io, path, .{}) catch return false;
-    } else {
-        Dir.cwd().access(io, path, .{}) catch return false;
-    }
-    return true;
+pub fn validateFilePath(io: std.Io, path: []const u8) bool {
+    return validateFile(io, .cwd(), path);
+}
+
+test "validatePath" {
+    const t = std.testing;
+    var tmp_dir = t.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    const file = try tmp_dir.dir.createFile(t.io, "slides.md", .{});
+    file.close(t.io);
+
+    try t.expect(validateFile(t.io, tmp_dir.dir, "slides.md"));
+    try t.expect(!validateFile(t.io, tmp_dir.dir, "test.md"));
+    try t.expect(!validateFile(t.io, tmp_dir.dir, "."));
 }

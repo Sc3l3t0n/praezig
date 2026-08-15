@@ -42,7 +42,7 @@ pub fn main(init: std.process.Init) !void {
     };
     defer gpa.free(path);
 
-    if (!args.validatePath(io, path)) {
+    if (!args.validateFilePath(io, path)) {
         try stderr.print("Path is invalid: {s}\n", .{path});
         try stderr.flush();
         std.process.exit(1);
