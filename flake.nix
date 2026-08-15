@@ -1,42 +1,62 @@
 {
-  description = "tasks dev flake";
+  description = "praezig flake containing its package and a devShell";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     zig.url = "github:mitchellh/zig-overlay";
-    # zls.url = "github:zigtools/zls";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    ...
-  } @ inputs: let
-    overlays = [
-      (final: prev: {
-        # inherit (inputs.zls.packages.${prev.stdenv.hostPlatform.system}) zls;
-        zigpkgs = inputs.zig.packages.${prev.stdenv.hostPlatform.system};
-      })
-    ];
-
-    # Our supported systems are the same supported systems as the Zig binaries
-    systems = builtins.attrNames inputs.zig.packages;
-  in
-    flake-utils.lib.eachSystem systems (
-      system: let
-        pkgs = import nixpkgs {inherit overlays system;};
+  outputs = {flake-parts, ...} @ inputs:
+    flake-parts.lib.mkFlake {inherit inputs;}
+    {
+      systems = ["x86_64-linux"];
+      perSystem = {
+        self',
+        inputs',
+        system,
+        pkgs,
+        ...
+      }: let
+        zig = inputs'.zig.packages."0.16.0";
       in {
+        _module.args.pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [(final: prev: {inherit zig;})];
+        };
+
+        packages = {
+          default = self'.packages.praezig;
+          praezig = pkgs.callPackage ({
+            lib,
+            stdenv,
+            zig,
+          }:
+            stdenv.mkDerivation {
+              pname = "praezig";
+              version = "0.0.0";
+
+              src = ./.;
+
+              nativeBuildInputs = [zig.hook];
+
+              meta = {
+                homepage = "https://github.com/Sc3l3t0n/praezig";
+                description = "TUI for displaying a presentation in a terminal";
+                changelog = "https://github.com/Sc3l3t0n/praezig/releases";
+                license = lib.licenses.mit;
+                mainProgram = "praezig";
+                inherit (zig.meta) platforms;
+              };
+            }) {};
+        };
+
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            zigpkgs."0.16.0"
+            zig
             zls
           ];
         };
-
-        # For compatibility with older versions of the `nix` binary
-        devShell = self.devShells.${system}.default;
-      }
-    );
+      };
+    };
 }
