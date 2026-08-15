@@ -1,6 +1,7 @@
 const std = @import("std");
 const alignments = @import("alignments.zig");
 
+const Presentation = @import("Presentation.zig");
 const Color = @import("termutils.zig").colors.Color;
 const Style = @import("termutils.zig").style.Style;
 const Terminal = @import("Terminal.zig");
@@ -18,10 +19,6 @@ pub const Options = struct {
     verticalAlignment: alignments.Vertical = .center,
     horizontalAlignment: alignments.Horizontal = .left,
     indent: u8 = 1,
-};
-
-pub const Error = error{
-    TooLong, // TODO: Temporary (handle properly)
 };
 
 const Row = @This();
@@ -57,7 +54,7 @@ pub fn get_height(row: Row) u8 {
     };
 }
 
-pub fn print_empty(term: Terminal) !void {
+pub fn print_empty(term: Terminal) std.Io.Writer.Error!void {
     try term.splatByteAll(
         ' ',
         term.size.col,
@@ -65,11 +62,12 @@ pub fn print_empty(term: Terminal) !void {
 }
 
 /// Renders row to writer
-pub fn print(row: Row, term: Terminal) !void {
+pub fn print(row: Row, term: Terminal) Presentation.PrintError!void {
     const settings = term.settings;
 
+    // TODO: Fold line here
     if (row.content.len >= term.size.col) {
-        return Error.TooLong; // TODO: Temporary (handle properly)
+        return Presentation.PrintError.TooSmall;
     }
 
     try term.splatByteAll(' ', 2 * row.options.indent);

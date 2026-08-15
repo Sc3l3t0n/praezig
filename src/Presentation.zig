@@ -10,6 +10,10 @@ const Terminal = @import("Terminal.zig");
 
 const Presentation = @This();
 
+pub const PrintError = error{
+    TooSmall,
+} || std.Io.Writer.Error;
+
 pages: []Page,
 settings: Settings,
 
@@ -29,11 +33,14 @@ pub fn printPage(
 ) !void {
     if (index >= presentation.pages.len) return error.IndexOutOfRange;
 
-    try presentation.pages[index].print(
+    presentation.pages[index].print(
         term,
         index,
         presentation.pages.len,
-    );
+    ) catch |err| switch (err) {
+        error.TooSmall => try Page.printTooSmall(term),
+        else => return err,
+    };
 }
 
 pub fn pageAmount(presentation: Presentation) usize {
