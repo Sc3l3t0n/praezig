@@ -31,6 +31,9 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
 
+      - name: Check formatting
+        run: zig fmt --check . 
+
       - name: Build
         run: zig build test 
           
